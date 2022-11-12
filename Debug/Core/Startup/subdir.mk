@@ -16,5 +16,5 @@ S_DEPS += \
 
 # Each subdirectory must supply rules for building sources it contributes
 Core/Startup/startup_stm32f031c6tx.o: ../Core/Startup/startup_stm32f031c6tx.s Core/Startup/subdir.mk
-	arm-none-eabi-gcc -mcpu=cortex-m0 -g3 -c -I"C:/Users/Martin/STM32CubeIDE/workspace_1.6.1/Lishui9FET/Drivers/CMSIS/Device/ST/STM32F0xx/Include" -x assembler-with-cpp -MMD -MP -MF"Core/Startup/startup_stm32f031c6tx.d" -MT"$@" --specs=nano.specs -mfloat-abi=soft -mthumb -o "$@" "$<"
+	arm-none-eabi-gcc -mcpu=cortex-m0 -g3 -c -I"C:/Users/Martin/git/Lishui9FET/GitData/Drivers/CMSIS/Device/ST/STM32F0xx/Include" -I"C:/Users/Martin/git/Lishui9FET/GitData/Drivers/CMSIS/Inc" -x assembler-with-cpp -MMD -MP -MF"Core/Startup/startup_stm32f031c6tx.d" -MT"$@" --specs=nano.specs -mfloat-abi=soft -mthumb -o "$@" "$<"
 

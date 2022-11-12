@@ -61,8 +61,8 @@ all: main-build
 main-build: Lishui9FET.elf secondary-outputs
 
 # Tool invocations
-Lishui9FET.elf: $(OBJS) $(USER_OBJS) C:\Users\Martin\STM32CubeIDE\workspace_1.6.1\Lishui9FET\STM32F031C6TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Lishui9FET.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"C:\Users\Martin\STM32CubeIDE\workspace_1.6.1\Lishui9FET\STM32F031C6TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Lishui9FET.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Lishui9FET.elf: $(OBJS) $(USER_OBJS) C:\Users\Martin\git\Lishui9FET\GitData\STM32F031C6TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Lishui9FET.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"C:\Users\Martin\git\Lishui9FET\GitData\STM32F031C6TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Lishui9FET.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

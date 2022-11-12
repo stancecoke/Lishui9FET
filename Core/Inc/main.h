@@ -58,6 +58,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define BKL_Brake_Pin GPIO_PIN_13
+#define BKL_Brake_GPIO_Port GPIOC
 #define SC_Hall_3_Pin GPIO_PIN_10
 #define SC_Hall_3_GPIO_Port GPIOB
 #define LED_Pin GPIO_PIN_12
@@ -66,6 +68,10 @@ void Error_Handler(void);
 #define SA_Hall_1_GPIO_Port GPIOA
 #define SB_Hall_2_Pin GPIO_PIN_3
 #define SB_Hall_2_GPIO_Port GPIOB
+#define TA_PAS_Pin GPIO_PIN_4
+#define TA_PAS_GPIO_Port GPIOB
+#define SS_Speedsensor_Pin GPIO_PIN_9
+#define SS_Speedsensor_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

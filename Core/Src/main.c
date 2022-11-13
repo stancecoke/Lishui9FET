@@ -124,16 +124,26 @@ int main(void)
   while (1)
   {
       HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-      HAL_Delay(100);
+     // HAL_Delay(100);
 
       if(ui8_adc_regular_flag){
-       	  printf("ADC channel 1 2 3:  %d, %d, %d \r\n ", adcData[0] ,adcData[1] , adcData[2] );
+       	  printf("ADC channels:  %d, %d, %d, %d, %d, %d, %d, %d, %d, %d \r\n ",
+       			  adcData[0] ,
+				  adcData[1] ,
+				  adcData[2] ,
+				  adcData[3] ,
+				  adcData[4] ,
+				  adcData[5] ,
+				  adcData[6] ,
+				  adcData[7] ,
+				  adcData[8] ,
+				  adcData[9] );
     	  ui8_adc_regular_flag=0;
       }
       else printf("keine neuen Daten :-( \r\n ");
       // LED OFF
       HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
-      HAL_Delay(100);
+    //  HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -60,6 +60,14 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define BKL_Brake_Pin GPIO_PIN_13
 #define BKL_Brake_GPIO_Port GPIOC
+#define AI0_notknown_Pin GPIO_PIN_0
+#define AI0_notknown_GPIO_Port GPIOA
+#define SP_Throttle_Pin GPIO_PIN_4
+#define SP_Throttle_GPIO_Port GPIOA
+#define Battery_Voltage_Pin GPIO_PIN_6
+#define Battery_Voltage_GPIO_Port GPIOA
+#define Battery_Current_Pin GPIO_PIN_0
+#define Battery_Current_GPIO_Port GPIOB
 #define SC_Hall_3_Pin GPIO_PIN_10
 #define SC_Hall_3_GPIO_Port GPIOB
 #define LED_Pin GPIO_PIN_12

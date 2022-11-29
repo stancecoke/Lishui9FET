@@ -73,7 +73,9 @@ static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 volatile uint16_t adcData[10]; //Buffer for ADC1 Input
 uint8_t ui8_adc_regular_flag =0;
-
+uint8_t ui8_com_flag =0;
+uint16_t ui16_halltics =0;
+uint8_t ui8_hallstate =0;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -119,6 +121,40 @@ int main(void)
 
 // uint8_t buffer[] = "test\r\n";
   HAL_ADC_Start_DMA(&hadc,(uint32_t*)adcData, 10);
+  if(HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
+    {
+      /* Counter Enable Error */
+      Error_Handler();
+    }
+  //  /* Set the pulse value for channel 1 */
+  //  sConfigOC.Pulse = 2047;
+  //  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  //  {
+  //    /* Configuration Error */
+  //    Error_Handler();
+  //  }
+  //
+  //  /* Set the pulse value for channel 2 */
+  //  sConfigOC.Pulse = 1023;
+  //  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  //  {
+  //    /* Configuration Error */
+  //    Error_Handler();
+  //  }
+  //
+  //  /* Set the pulse value for channel 3 */
+  //  sConfigOC.Pulse = 511;
+  //  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  //  {
+  //    /* Configuration Error */
+  //    Error_Handler();
+  //  }
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); // turn on complementary channel
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
   /* USER CODE END 2 */
 
@@ -129,22 +165,29 @@ int main(void)
       HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
      // HAL_Delay(100);
 
-      if(ui8_adc_regular_flag){
-       	  printf("ADC channels:  %d, %d, %d, %d, %d, %d, %d, %d, %d, %d \r\n ",
-       			  adcData[0] ,
-				  adcData[1] ,
-				  adcData[2] ,
-				  adcData[3] ,
-				  adcData[4] ,
-				  adcData[5] ,
-				  adcData[6] ,
-				  adcData[7] ,
-				  adcData[8] ,
-				  adcData[9] );
-    	  ui8_adc_regular_flag=0;
-      }
-      else printf("keine neuen Daten :-( \r\n ");
+//      if(ui8_adc_regular_flag){
+//       	  printf("ADC channels:  %d, %d, %d, %d, %d, %d, %d, %d, %d, %d \r\n ",
+//       			  adcData[0] ,
+//				  adcData[1] ,
+//				  adcData[2] ,
+//				  adcData[3] ,
+//				  adcData[4] ,
+//				  adcData[5] ,
+//				  adcData[6] ,
+//				  adcData[7] ,
+//				  adcData[8] ,
+//				  adcData[9] );
+//    	  ui8_adc_regular_flag=0;
+//      }
+//      else printf("keine neuen Daten :-( \r\n ");
       // LED OFF
+      if(ui8_com_flag){
+    	  ui8_hallstate = ((GPIOB->IDR)>>10 & 0b1)+(((GPIOB->IDR)>>3 & 0b1)<<1)+(((GPIOA->IDR)>>15 & 0b1)<<2); //Mask input register with Hall 1 - 3 bits
+    	  ui16_halltics = TIM2->CCR1;
+    	  printf("%d, %d \r\n ",  ui16_halltics, ui8_hallstate );
+    	  ui8_com_flag=0;
+
+      }
       HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
     //  HAL_Delay(100);
     /* USER CODE END WHILE */
@@ -400,74 +443,8 @@ static void MX_TIM1_Init(void)
   }
   /* USER CODE BEGIN TIM1_Init 2 */
 
-//  /* Set the pulse value for channel 1 */
-//  sConfigOC.Pulse = 2047;
-//  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-//  {
-//    /* Configuration Error */
-//    Error_Handler();
-//  }
-//
-//  /* Set the pulse value for channel 2 */
-//  sConfigOC.Pulse = 1023;
-//  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-//  {
-//    /* Configuration Error */
-//    Error_Handler();
-//  }
-//
-//  /* Set the pulse value for channel 3 */
-//  sConfigOC.Pulse = 511;
-//  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-//  {
-//    /* Configuration Error */
-//    Error_Handler();
-//  }
-  /*##-4- Configure the commutation event: software event ####################*/
-    HAL_TIMEx_ConfigCommutEvent_IT(&htim1, TIM_TS_ITR1, TIM_COMMUTATION_TRGI);
-    if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
-      {
-        /* Starting Error */
-        Error_Handler();
-      }
-      /* Start channel 1N */
-      if(HAL_TIMEx_OCN_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
-      {
-        /* Starting Error */
-        Error_Handler();
-      }
-      /*--------------------------------------------------------------------------*/
 
-
-      /*--------------------------------------------------------------------------*/
-      /* Start channel 2 */
-      if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
-      {
-        /* Starting Error */
-        Error_Handler();
-      }
-      /* Start channel 2N */
-      if(HAL_TIMEx_OCN_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
-      {
-        /* Starting Error */
-        Error_Handler();
-      }
-      /*--------------------------------------------------------------------------*/
-
-
-      /*--------------------------------------------------------------------------*/
-      /* Start channel 3 */
-      if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_3) != HAL_OK)
-      {
-        /* Starting Error */
-        Error_Handler();
-      }
-      /* Start channel 3N */
-      if(HAL_TIMEx_OCN_Start(&htim1, TIM_CHANNEL_3) != HAL_OK)
-      {
-        /* Starting Error */
-        Error_Handler();
-      }
+  HAL_TIMEx_ConfigCommutEvent_IT(&htim1,TIM_TS_ITR1,TIM_COMMUTATION_TRGI);
 
   /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
@@ -494,7 +471,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 126;
+  htim2.Init.Prescaler = 1024;//126;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -511,7 +488,7 @@ static void MX_TIM2_Init(void)
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
   sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
   sConfig.IC1Filter = 0;
-  sConfig.Commutation_Delay = 0;
+  sConfig.Commutation_Delay = 1;
   if (HAL_TIMEx_HallSensor_Init(&htim2, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -523,7 +500,9 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM2_Init 2 */
+
   HAL_TIMEx_HallSensor_Start_IT(&htim2);
+
   /* USER CODE END TIM2_Init 2 */
 
 }
@@ -614,24 +593,18 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	ui8_adc_regular_flag=1;
 }
 
-void TimerCommutationEvent_Callback(void)
+
+
+void HAL_TIMEx_CommutCallback(TIM_HandleTypeDef *htim)
 {
-	printf("Commutation callback! \r\n ");
+	ui8_com_flag =1;
+
 }
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef* htim)
 {
 
-	printf("Hallsensor callback! \r\n ");
-
-//	 //__HAL_TIM_SET_COUNTER(&htim2,0); //reset tim2 counter
-//
-//		ui16_timertics = TIM2->CCR1;
-//
-//
-//	//Hall sensor event processing
-//
-//		ui8_hall_state = GPIOA->IDR & 0b111; //Mask input register with Hall 1 - 3 bits
+//nothing to do here....
 }
 
 /* USER CODE END 4 */

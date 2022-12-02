@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
 #include <stdio.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,6 +77,8 @@ uint8_t ui8_adc_regular_flag =0;
 uint8_t ui8_com_flag =0;
 uint16_t ui16_halltics =0;
 uint8_t ui8_hallstate =0;
+uint8_t uwStep=0;
+uint16_t ui16_dutycycle = 200;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -126,35 +129,56 @@ int main(void)
       /* Counter Enable Error */
       Error_Handler();
     }
-  //  /* Set the pulse value for channel 1 */
-  //  sConfigOC.Pulse = 2047;
-  //  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  //  {
-  //    /* Configuration Error */
-  //    Error_Handler();
-  //  }
-  //
-  //  /* Set the pulse value for channel 2 */
-  //  sConfigOC.Pulse = 1023;
-  //  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  //  {
-  //    /* Configuration Error */
-  //    Error_Handler();
-  //  }
-  //
-  //  /* Set the pulse value for channel 3 */
-  //  sConfigOC.Pulse = 511;
-  //  if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  //  {
-  //    /* Configuration Error */
-  //    Error_Handler();
-  //  }
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); // turn on complementary channel
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
+  /*##-5- Start signals generation ###########################################*/
+  /*--------------------------------------------------------------------------*/
+  /* Start channel 1 */
+  if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
+  /* Start channel 1N */
+  if(HAL_TIMEx_OCN_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
+  /*--------------------------------------------------------------------------*/
+
+
+  /*--------------------------------------------------------------------------*/
+  /* Start channel 2 */
+  if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
+  /* Start channel 2N */
+  if(HAL_TIMEx_OCN_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
+  /*--------------------------------------------------------------------------*/
+
+
+  /*--------------------------------------------------------------------------*/
+  /* Start channel 3 */
+  if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_3) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
+  /* Start channel 3N */
+  if(HAL_TIMEx_OCN_Start(&htim1, TIM_CHANNEL_3) != HAL_OK)
+  {
+    /* Starting Error */
+    Error_Handler();
+  }
+// set initial duty cycle
+  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
+  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
+  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
 
   /* USER CODE END 2 */
 
@@ -184,9 +208,128 @@ int main(void)
       if(ui8_com_flag){
     	  ui8_hallstate = ((GPIOB->IDR)>>10 & 0b1)+(((GPIOB->IDR)>>3 & 0b1)<<1)+(((GPIOA->IDR)>>15 & 0b1)<<2); //Mask input register with Hall 1 - 3 bits
     	  ui16_halltics = TIM2->CCR1;
-    	  printf("%d, %d \r\n ",  ui16_halltics, ui8_hallstate );
+    	  printf("%d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, uwStep );
     	  ui8_com_flag=0;
 
+    	  /* Entry state */
+    	  if (uwStep == 0)
+    	  {
+    	    /* Initial Step Configuration (executed only once) ---------------------- */
+    	    /*  Channel1 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+
+    	    /*  Channel3 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
+
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1 |
+    	                                  LL_TIM_CHANNEL_CH3N);
+
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N |
+    	                                   LL_TIM_CHANNEL_CH2  |
+    	                                   LL_TIM_CHANNEL_CH2N |
+    	                                   LL_TIM_CHANNEL_CH3);
+
+    	  }
+
+    	  if (uwStep == 1)
+    	  {
+    	    /* Next step: Step 1 Configuration -------------------------------------- */
+    	    /*  Channel1 configuration */
+    	    /* Same configuration as the previous step */
+
+    	    /*  Channel2 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+    	    /*  Channel3 configuration */
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+
+    	  }
+
+    	  else if (uwStep == 2)
+    	  {
+    	    /* Next step: Step 2 Configuration -------------------------------------- */
+    	    /*  Channel2 configuration */
+    	    /* Same configuration as the previous step */
+
+    	    /*  Channel3 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+
+    	    /*  Channel1 configuration */
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+
+
+    	  }
+
+    	  else if (uwStep == 3)
+    	  {
+    	    /* Next step: Step 3 Configuration -------------------------------------- */
+    	    /*  Channel3 configuration */
+    	    /* Same configuration as the previous step */
+
+    	    /*  Channel2 configuration */
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
+
+    	    /*  Channel1 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+
+    	  }
+    	  else if (uwStep == 4)
+    	  {
+    	    /* Next step: Step 4 Configuration -------------------------------------- */
+    	    /*  Channel3 configuration */
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH3);
+
+    	    /*  Channel1 configuration */
+    	    /* Same configuration as the previous step */
+
+    	    /*  Channel2 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+
+
+    	  }
+
+    	  else if (uwStep == 5)
+    	  {
+    	    /* Next step: Step 5 Configuration -------------------------------------- */
+    	    /*  Channel3 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
+
+    	    /*  Channel1 configuration */
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
+
+    	    /*  Channel2 configuration */
+    	    /* Same configuration as the previous step */
+
+
+    	  }
+
+    	  else
+    	  {
+    	    /* Next step: Step 6 Configuration -------------------------------------- */
+    	    /*  Channel1 configuration */
+    	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
+    	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1);
+
+    	    /*  Channel3 configuration */
+    	    /* Same configuration as the previous step */
+
+    	    /*  Channel2 configuration */
+    	    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH2);
+
+
+    	  }
+    	  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
+    	  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
+    	  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
+    	  uwStep++;
+    	  if(uwStep == 7) uwStep=1;
       }
       HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
     //  HAL_Delay(100);
@@ -417,7 +560,7 @@ static void MX_TIM1_Init(void)
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_SET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -433,7 +576,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 63;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -471,7 +614,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 1024;//126;
+  htim2.Init.Prescaler = 512;//126;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

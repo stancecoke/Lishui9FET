@@ -78,6 +78,8 @@ void Error_Handler(void);
 #define SB_Hall_2_GPIO_Port GPIOB
 #define TA_PAS_Pin GPIO_PIN_4
 #define TA_PAS_GPIO_Port GPIOB
+#define LED_Pin GPIO_PIN_12
+#define LED_GPIO_Port GPIOA
 #define SS_Speedsensor_Pin GPIO_PIN_9
 #define SS_Speedsensor_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */

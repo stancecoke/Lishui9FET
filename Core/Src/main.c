@@ -81,6 +81,9 @@ uint8_t ui8_hallstate =0;
 uint8_t uwStep=0;
 //uint8_t hall_sequence[7]={4,5,1,3,2,6};
 uint8_t hall_sequence[7]={0,3,5,4,1,2,6};
+
+//uint8_t hall_sequence[7]={5,1,3,2,6,4};
+//uint8_t hall_sequence[7]={0,2,4,3,6,1,5};
 uint16_t ui16_dutycycle = 0;
 uint16_t ui16_throttle_cumulated = 0;
 uint16_t ui16_throttle = 0;
@@ -198,15 +201,14 @@ int main(void)
 	  uint16_t ui16_throttle = ui16_throttle_cumulated>>4;
 	  printf("%d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle );
 	  ui16_dutycycle = ui16_throttle;
+	  ui8_adc_regular_flag=0;
 	  }
 	  if(ui8_com_flag){
-		  	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
-		  	ui8_hallstate = ((GPIOB->IDR)>>10 & 0b1)+(((GPIOB->IDR)>>3 & 0b1)<<1)+(((GPIOA->IDR)>>15 & 0b1)<<2); //Mask input register with Hall 1 - 3 bits
-		  	ui16_halltics = TIM2->CCR1;
+
 
 
 		  	ui8_com_flag = 0;
-		  	TimerCommutationEvent_Callback();
+
 
 	  }
     /* USER CODE END WHILE */
@@ -623,7 +625,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 void HAL_TIMEx_CommutCallback(TIM_HandleTypeDef *htim)
 {
-	ui8_com_flag =1;
+
+  	TimerCommutationEvent_Callback();
+  	ui8_com_flag =1;
 
 }
 
@@ -635,6 +639,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef* htim)
 
 void TimerCommutationEvent_Callback(void)
 {
+
+  	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
+  	ui8_hallstate = ((GPIOB->IDR)>>10 & 0b1)+(((GPIOB->IDR)>>3 & 0b1)<<1)+(((GPIOA->IDR)>>15 & 0b1)<<2); //Mask input register with Hall 1 - 3 bits
+  	ui16_halltics = TIM2->CCR1;
   /* Entry state */
 	  if (uwStep == 0)
 	  {

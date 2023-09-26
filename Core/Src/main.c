@@ -199,24 +199,23 @@ int main(void)
 	  ui16_throttle_cumulated-=ui16_throttle_cumulated>>4;
 	  if(adcData[4]>0)ui16_throttle_cumulated+=adcData[4];
 	  uint16_t ui16_throttle = ui16_throttle_cumulated>>4;
-	  printf("%d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle );
+	  printf("%d, %d, %d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, adcData[8],ui8_com_flag);
 	  ui16_dutycycle = ui16_throttle;
+	  if(ui16_dutycycle>100&&(TIM2->CNT)>15000&&!ui8_com_flag){
+		  TimerCommutationEvent_Callback();
+		  ui8_com_flag = 1;
+	  	  }
+	  if(!ui16_dutycycle)ui8_com_flag = 0;
 	  ui8_adc_regular_flag=0;
 	  }
-	  if(ui8_com_flag){
 
-
-
-		  	ui8_com_flag = 0;
-
-
-	  }
+	  } //end while (1)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+
   /* USER CODE END 3 */
-}
+} //end main
 
 /**
   * @brief System Clock Configuration
@@ -627,7 +626,6 @@ void HAL_TIMEx_CommutCallback(TIM_HandleTypeDef *htim)
 {
 
   	TimerCommutationEvent_Callback();
-  	ui8_com_flag =1;
 
 }
 

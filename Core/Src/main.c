@@ -201,11 +201,7 @@ int main(void)
 	  uint16_t ui16_throttle = ui16_throttle_cumulated>>4;
 	  printf("%d, %d, %d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, adcData[8],ui8_com_flag);
 	  ui16_dutycycle = ui16_throttle;
-	  if(ui16_dutycycle>100&&(TIM2->CNT)>15000&&!ui8_com_flag){
-		  TimerCommutationEvent_Callback();
-		  ui8_com_flag = 1;
-	  	  }
-	  if(!ui16_dutycycle)ui8_com_flag = 0;
+
 	  ui8_adc_regular_flag=0;
 	  }
 
@@ -491,7 +487,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 4095;//126;
+  htim2.Init.Prescaler = 256;//126;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -638,7 +634,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef* htim)
 void TimerCommutationEvent_Callback(void)
 {
 
-  	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
+	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
   	ui8_hallstate = ((GPIOB->IDR)>>10 & 0b1)+(((GPIOB->IDR)>>3 & 0b1)<<1)+(((GPIOA->IDR)>>15 & 0b1)<<2); //Mask input register with Hall 1 - 3 bits
   	ui16_halltics = TIM2->CCR1;
   /* Entry state */

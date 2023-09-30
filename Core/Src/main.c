@@ -212,15 +212,20 @@ int main(void)
   LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
   LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
   LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
-  HAL_Delay(500); //wait for stable conditions
 
-  for(i=0;i<32;i++){
-  	while(!ui8_adc_regular_flag){}
-  	ui16_battery_current_offset+=adcData[8];
+  //HAL_Delay(1000); //wait for stable conditions
 
-  	ui8_adc_regular_flag=0;
-  }
+
+  ui16_battery_current_offset=0;
+  for(i=0;i<36;i++){
+	  	while(!ui8_adc_regular_flag){}
+	  	if(i>3)	ui16_battery_current_offset+=adcData[8];
+	  	 printf("%d, \r\n ",  adcData[8]);
+
+	  	ui8_adc_regular_flag=0;
+	  }
   ui16_battery_current_offset=ui16_battery_current_offset>>5;
+  i16_battery_current_cumulated=ui16_battery_current_offset<<4;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -244,7 +249,7 @@ int main(void)
 		  slow_loop_counter++;
 		  if(slow_loop_counter>9){//debug printout @20Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
-			  printf("%d, %d, %d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current ,ui8_direction_flag);
+			  printf("%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint ,ui8_direction_flag);
 			  slow_loop_counter=0;
 		  	  }
 		  //
@@ -739,7 +744,7 @@ uint32_t PI_control (PI_control_t* PI_c)
 
   if (PI_c->integral_part > PI_c->limit_i << PI_c->shift) PI_c->integral_part = PI_c->limit_i << PI_c->shift;
   if (PI_c->integral_part < -(PI_c->limit_i << PI_c->shift)) PI_c->integral_part = -(PI_c->limit_i << PI_c->shift);
-  if(!READ_BIT(TIM1->BDTR, TIM_BDTR_MOE))PI_c->integral_part = 0 ; //reset integral part if PWM is disabled
+  if(!(PI_c->setpoint))PI_c->integral_part = 0 ; //reset integral part if PWM is disabled
 
     //avoid too big steps in one loop run
   if (p_part+PI_c->integral_part > PI_c->out+PI_c->max_step) PI_c->out+=PI_c->max_step;
@@ -748,8 +753,8 @@ uint32_t PI_control (PI_control_t* PI_c)
 
 
   if (PI_c->out>PI_c->limit_output << PI_c->shift) PI_c->out = PI_c->limit_output<< PI_c->shift;
-  if (PI_c->out<-(PI_c->limit_output << PI_c->shift)) PI_c->out = -(PI_c->limit_output<< PI_c->shift); // allow no negative voltage.
-  if(!READ_BIT(TIM1->BDTR, TIM_BDTR_MOE))PI_c->out = 0 ; //reset output if PWM is disabled
+  if (PI_c->out<0) PI_c->out=0; // allow no negative voltage.
+  if(!(PI_c->setpoint))PI_c->out = 0 ; //reset output if PWM is disabled
 
   return (PI_c->out>>PI_c->shift);
 }

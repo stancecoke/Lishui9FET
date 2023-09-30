@@ -83,6 +83,20 @@ void Error_Handler(void);
 #define SS_Speedsensor_Pin GPIO_PIN_9
 #define SS_Speedsensor_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
+typedef struct
+{
+	int16_t       	gain_p;
+	int16_t       	gain_i;
+	int16_t       	limit_i;
+	int16_t       	limit_output;
+	int16_t       	recent_value;
+	int32_t       	setpoint;
+	int32_t       	integral_part;
+	int16_t       	max_step;
+	int32_t       	out;
+	int8_t       	shift;
+
+}PI_control_t;
 
 /* USER CODE END Private defines */
 

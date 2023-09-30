@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
 #include <stdio.h>
+#include "config.h"
 
 /* USER CODE END Includes */
 
@@ -63,6 +64,8 @@ UART_HandleTypeDef huart1;
   }
 void TimerCommutationEvent_Callback(void);
 void Get_Direction(void);
+uint32_t PI_control (PI_control_t* PI_c);
+int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,21 +85,24 @@ uint16_t ui16_timing_counter =0;
 uint16_t ui16_battery_current_offset =0;
 int16_t i16_battery_current =0;
 int16_t i16_battery_current_cumulated =0;
-uint8_t ui8_cal_battery_current = 38;
+uint8_t ui8_cal_battery_current = CAL_I;
 uint16_t ui16_throttle =0;
+uint16_t ui16_throttle_offset = THROTTLE_OFFSET;
 uint8_t ui8_hallstate =0;
 uint8_t ui8_hallstate_old =0;
 uint8_t uwStep=0;
+uint8_t slow_loop_counter=0;
 uint8_t i=0;
 //uint8_t hall_sequence[7]={4,5,1,3,2,6};
 uint8_t hall_sequence[2][7]={
 		{0,3,5,4,1,2,6},
 		{0,4,6,5,2,3,1}};
 
-//uint8_t hall_sequence[7]={5,1,3,2,6,4};
-//uint8_t hall_sequence[7]={0,2,4,3,6,1,5};
+
 uint16_t ui16_dutycycle = 0;
 uint16_t ui16_throttle_cumulated = 0;
+
+PI_control_t PI_battery_current;
 
 /* USER CODE END PFP */
 
@@ -141,7 +147,15 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-// uint8_t buffer[] = "test\r\n";
+  PI_battery_current.gain_i=I_FACTOR;
+  PI_battery_current.gain_p=P_FACTOR;
+  PI_battery_current.setpoint = 0;
+  PI_battery_current.limit_output =PERIOD;
+  PI_battery_current.max_step=5000;
+  PI_battery_current.shift=10;
+  PI_battery_current.limit_i=PERIOD;
+
+
   HAL_ADC_Start_DMA(&hadc,(uint32_t*)adcData, 10);
   if(HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
     {
@@ -215,21 +229,30 @@ int main(void)
   {
 	  if(ui8_adc_regular_flag){
 		  ui16_throttle_cumulated-=ui16_throttle_cumulated>>4;
-		  if(adcData[4]>0)ui16_throttle_cumulated+=adcData[4];
+		  ui16_throttle_cumulated+=adcData[4];
 		  ui16_throttle = ui16_throttle_cumulated>>4;
 
 		  i16_battery_current_cumulated-=i16_battery_current_cumulated>>4;
 		  i16_battery_current_cumulated+=adcData[8];
 		  i16_battery_current=((i16_battery_current_cumulated>>4)-ui16_battery_current_offset)*ui8_cal_battery_current;
-		  printf("%d, %d, %d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current ,ui8_direction_flag);
-		  ui16_dutycycle = ui16_throttle;
+
+
 		  ui8_adc_regular_flag=0;
 	  	  }
-	  if(ui16_timing_counter>8000){
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
+
+	  if(ui16_timing_counter>80){ //run control @200Hz
+		  slow_loop_counter++;
+		  if(slow_loop_counter>9){//debug printout @20Hz
+			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
+			  printf("%d, %d, %d, %d, %d \r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current ,ui8_direction_flag);
+			  slow_loop_counter=0;
+		  	  }
+		  //
+		  PI_battery_current.recent_value=i16_battery_current;
+		  PI_battery_current.setpoint=map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, BATTERY_CURRENT_MAX);
+		  ui16_dutycycle = PI_control(&PI_battery_current);
 		  ui16_timing_counter=0;
 	  	  }
-
 	  } //end while (1)
     /* USER CODE END WHILE */
 
@@ -423,7 +446,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 4096;
+  htim1.Init.Period = PERIOD;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -704,6 +727,48 @@ void Get_Direction(void){
 		}
 		ui8_hallstate_old = ui8_hallstate;
 	}
+}
+//PI Control for battery current
+uint32_t PI_control (PI_control_t* PI_c)
+{
+
+	int16_t p_part; //proportional part
+	p_part = ((PI_c->setpoint - PI_c->recent_value)*PI_c->gain_p);
+  PI_c->integral_part += ((PI_c->setpoint - PI_c->recent_value)*PI_c->gain_i);
+
+
+  if (PI_c->integral_part > PI_c->limit_i << PI_c->shift) PI_c->integral_part = PI_c->limit_i << PI_c->shift;
+  if (PI_c->integral_part < -(PI_c->limit_i << PI_c->shift)) PI_c->integral_part = -(PI_c->limit_i << PI_c->shift);
+  if(!READ_BIT(TIM1->BDTR, TIM_BDTR_MOE))PI_c->integral_part = 0 ; //reset integral part if PWM is disabled
+
+    //avoid too big steps in one loop run
+  if (p_part+PI_c->integral_part > PI_c->out+PI_c->max_step) PI_c->out+=PI_c->max_step;
+  else if  (p_part+PI_c->integral_part < PI_c->out-PI_c->max_step)PI_c->out-=PI_c->max_step;
+  else PI_c->out=(p_part+PI_c->integral_part);
+
+
+  if (PI_c->out>PI_c->limit_output << PI_c->shift) PI_c->out = PI_c->limit_output<< PI_c->shift;
+  if (PI_c->out<-(PI_c->limit_output << PI_c->shift)) PI_c->out = -(PI_c->limit_output<< PI_c->shift); // allow no negative voltage.
+  if(!READ_BIT(TIM1->BDTR, TIM_BDTR_MOE))PI_c->out = 0 ; //reset output if PWM is disabled
+
+  return (PI_c->out>>PI_c->shift);
+}
+
+int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max)
+{
+  // if input is smaller/bigger than expected return the min/max out ranges value
+  if (x < in_min)
+    return out_min;
+  else if (x > in_max)
+    return out_max;
+
+  // map the input to the output range.
+  // round up if mapping bigger ranges to smaller ranges
+  else  if ((in_max - in_min) > (out_max - out_min))
+    return (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min;
+  // round down if mapping smaller ranges to bigger ranges
+  else
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 void TimerCommutationEvent_Callback(void)

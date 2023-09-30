@@ -23,8 +23,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include "config.h"
+#include "print.h"
 
 /* USER CODE END Includes */
 
@@ -52,16 +53,16 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif
-  PUTCHAR_PROTOTYPE
-  {
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-    return ch;
-  }
+//#ifdef __GNUC__
+//#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+//#else
+//#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+//#endif
+//  PUTCHAR_PROTOTYPE
+//  {
+//    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+//    return ch;
+//  }
 void TimerCommutationEvent_Callback(void);
 void Get_Direction(void);
 uint32_t PI_control (PI_control_t* PI_c);
@@ -220,7 +221,7 @@ int main(void)
   for(i=0;i<36;i++){
 	  	while(!ui8_adc_regular_flag){}
 	  	if(i>3)	ui16_battery_current_offset+=adcData[8];
-	  	 printf("%d, \r\n ",  adcData[8]);
+	  	printf_("%d, \r\n ",  adcData[8]);
 
 	  	ui8_adc_regular_flag=0;
 	  }
@@ -249,7 +250,7 @@ int main(void)
 		  slow_loop_counter++;
 		  if(slow_loop_counter>9){//debug printout @20Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
-			  printf("%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint ,ui8_direction_flag);
+			  printf_("%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint ,ui8_direction_flag);
 			  slow_loop_counter=0;
 		  	  }
 		  //

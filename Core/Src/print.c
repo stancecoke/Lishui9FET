@@ -72,10 +72,7 @@ void long_itoa (long, int, int, void (*) (char)); //heavily used by printf_()
 
 void putc_UART1 (char c)
 {
-	if (c == '\n') {
-		while ((USART1->ISR & USART_ISR_TXE) == 0);  //blocks until previous byte was sent
-		USART1->TDR ='\r';
-	}
+
 	while ((USART1->ISR & USART_ISR_TXE) == 0);  //blocks until previous byte was sent
 	USART1->TDR = c;
 }

@@ -61,6 +61,7 @@ extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_usart1_tx;
+extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -144,7 +145,20 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f0xx.s).                    */
 /******************************************************************************/
+void USART1_IRQHandler(void)
+{
+	  if (huart1.Instance->ISR & UART_FLAG_IDLE)
+	  {
+	    // clear the IDLE interrupt
+	    // see RM0008 27.6.1 Status register (USART_SR)
+	    __HAL_UART_CLEAR_IDLEFLAG(&huart1);
 
+	  }
+	  else
+	  {
+	    HAL_UART_IRQHandler(&huart1);
+	  }
+}
 /**
   * @brief This function handles EXTI line 4 to 15 interrupts.
   */
@@ -159,6 +173,7 @@ void EXTI4_15_IRQHandler(void)
 
   /* USER CODE END EXTI4_15_IRQn 1 */
 }
+
 /**
   * @brief This function handles DMA1 channel 1 interrupt.
   */

@@ -51,7 +51,7 @@ int sprintf_(char *buffer, const char *format, ...);
 
 void putc_UART1 (char);         // blocking put char; used by printf_()
 void putc_strg(char);          // the put() function for sprintf()
-char *SPRINTF_buffer;          //
+static char *SPRINTF_buffer;          //
 
 static int vfprintf_(void (*) (char), const char *format, va_list arg); //generic print
 void long_itoa (long, int, int, void (*) (char)); //heavily used by printf_()

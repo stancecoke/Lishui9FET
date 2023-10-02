@@ -96,6 +96,12 @@ uint8_t ui8_hallstate_old =0;
 uint8_t uwStep=0;
 uint8_t slow_loop_counter=0;
 uint8_t i=0;
+uint8_t ui8_PAS_flag=0;
+uint16_t ui16_PAS_counter=0;
+uint16_t ui16_PAS=0;
+uint8_t ui8_SPEED_flag=0;
+uint16_t ui16_SPEED_counter=0;
+uint16_t ui16_SPEED=0;
 //uint8_t hall_sequence[7]={4,5,1,3,2,6};
 uint8_t hall_sequence[2][7]={
 		{0,3,5,4,1,2,6},
@@ -235,6 +241,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if(ui8_SPEED_flag&&ui16_SPEED_counter>100){
+		  ui16_SPEED=ui16_SPEED_counter;
+		  ui16_SPEED_counter=0;
+		  ui8_SPEED_flag=0;
+	  }
+
+	  if(ui8_PAS_flag&&ui16_PAS_counter>100){
+		  ui16_PAS=ui16_PAS_counter;
+		  ui16_PAS_counter=0;
+		  ui8_PAS_flag=0;
+	  }
+
 	  if(ui8_adc_regular_flag){
 		  ui16_throttle_cumulated-=ui16_throttle_cumulated>>4;
 		  ui16_throttle_cumulated+=adcData[4];
@@ -253,7 +271,7 @@ int main(void)
 		  if(slow_loop_counter>9){//debug printout @20Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint ,ui8_direction_flag);
+			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint ,ui16_SPEED);
 
 
 			 i=0;
@@ -672,13 +690,13 @@ static void MX_GPIO_Init(void)
 
 	  /*Configure GPIO pins : TA_PAS_Pin SS_Speed_Pin */
 	  GPIO_InitStruct.Pin = TA_PAS_Pin|SS_Speed_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
 	  GPIO_InitStruct.Pull = GPIO_PULLUP;
 	  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	  /* EXTI interrupt init*/
-//	  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
-//	  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+	  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+	  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 
 }
 
@@ -687,6 +705,25 @@ static void MX_GPIO_Init(void)
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	ui8_adc_regular_flag=1;
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	//HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	//PAS processing
+	if(GPIO_Pin == TA_PAS_Pin)
+	{
+		ui8_PAS_flag = 1;
+	}
+
+	//Speed processing
+	if(GPIO_Pin == SS_Speed_Pin)
+	{
+
+			ui8_SPEED_flag = 1; //with debounce
+
+	}
+	//HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 }
 
 
@@ -712,6 +749,8 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim==&htim1&&ui16_timing_counter<64000)ui16_timing_counter++;
+	if(htim==&htim1&&ui16_SPEED_counter<64000)ui16_SPEED_counter++;
+	if(htim==&htim1&&ui16_PAS_counter<64000)ui16_PAS_counter++;
 }
 
 void Get_Direction(void){

@@ -69,6 +69,8 @@ void TimerCommutationEvent_Callback(void);
 void Get_Direction(void);
 uint32_t PI_control (PI_control_t* PI_c);
 int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max);
+int16_t internal_tics_to_speedx100 (uint32_t tics);
+int16_t external_tics_to_speedx100 (uint32_t tics);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,6 +104,7 @@ uint16_t ui16_PAS=0;
 uint8_t ui8_SPEED_flag=0;
 uint16_t ui16_SPEED_counter=0;
 uint16_t ui16_SPEED=0;
+uint16_t ui16_SPEEDx100_kph=0;
 //uint8_t hall_sequence[7]={4,5,1,3,2,6};
 uint8_t hall_sequence[2][7]={
 		{0,3,5,4,1,2,6},
@@ -245,6 +248,9 @@ int main(void)
 		  ui16_SPEED=ui16_SPEED_counter;
 		  ui16_SPEED_counter=0;
 		  ui8_SPEED_flag=0;
+#if (SPEEDSOURCE==EXTERNAL)
+		  ui16_SPEEDx100_kph = external_tics_to_speedx100 (ui16_SPEED);
+#endif
 	  }
 
 	  if(ui8_PAS_flag&&ui16_PAS_counter>100){
@@ -271,7 +277,7 @@ int main(void)
 		  if(slow_loop_counter>9){//debug printout @20Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint ,ui16_SPEED);
+			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint, ui16_SPEEDx100_kph);
 
 
 			 i=0;
@@ -284,6 +290,9 @@ int main(void)
 		  PI_battery_current.recent_value=i16_battery_current;
 		  PI_battery_current.setpoint=map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, BATTERY_CURRENT_MAX);
 		  ui16_dutycycle = PI_control(&PI_battery_current);
+#if (SPEEDSOURCE==INTERNAL)
+		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
+#endif
 		  ui16_timing_counter=0;
 	  	  }
 	  } //end while (1)
@@ -568,7 +577,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 256;//126;
+  htim2.Init.Prescaler = 96;// timer increments with 500kHz
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -690,7 +699,8 @@ static void MX_GPIO_Init(void)
 
 	  /*Configure GPIO pins : TA_PAS_Pin SS_Speed_Pin */
 	  GPIO_InitStruct.Pin = TA_PAS_Pin|SS_Speed_Pin;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING
+			  ;
 	  GPIO_InitStruct.Pull = GPIO_PULLUP;
 	  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -821,6 +831,13 @@ uint32_t PI_control (PI_control_t* PI_c)
   if(!(PI_c->setpoint))PI_c->out = 0 ; //reset output if PWM is disabled
 
   return (PI_c->out>>PI_c->shift);
+}
+int16_t internal_tics_to_speedx100 (uint32_t tics){
+	return WHEEL_CIRCUMFERENCE*50*3600/(6*GEAR_RATIO*tics);
+}
+
+int16_t external_tics_to_speedx100 (uint32_t tics){
+	return WHEEL_CIRCUMFERENCE*16*360/(PULSES_PER_REVOLUTION*tics); //Faktor kontrollieren! 16kHz Zählerfrequenz
 }
 
 int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max)

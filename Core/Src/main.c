@@ -99,12 +99,15 @@ uint8_t uwStep=0;
 uint8_t slow_loop_counter=0;
 uint8_t i=0;
 uint8_t ui8_PAS_flag=0;
-uint16_t ui16_PAS_counter=0;
+uint16_t ui16_PAS_counter=PAS_TIMEOUT+1;
 uint16_t ui16_PAS=0;
 uint8_t ui8_SPEED_flag=0;
+uint8_t ui8_assist_level=127;
 uint16_t ui16_SPEED_counter=0;
 uint16_t ui16_SPEED=0;
 uint16_t ui16_SPEEDx100_kph=0;
+uint16_t uint16_mapped_PAS=0;
+uint16_t uint16_mapped_Throttle=0;
 //uint8_t hall_sequence[7]={4,5,1,3,2,6};
 uint8_t hall_sequence[2][7]={
 		{0,3,5,4,1,2,6},
@@ -277,7 +280,7 @@ int main(void)
 		  if(slow_loop_counter>9){//debug printout @20Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_halltics, ui8_hallstate, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint, ui16_SPEEDx100_kph);
+			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_PAS, uint16_mapped_PAS, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint, ui16_SPEEDx100_kph);
 
 
 			 i=0;
@@ -288,7 +291,16 @@ int main(void)
 		  	  }
 		  //
 		  PI_battery_current.recent_value=i16_battery_current;
-		  PI_battery_current.setpoint=map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, BATTERY_CURRENT_MAX);
+
+		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((BATTERY_CURRENT_MAX*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
+		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
+
+		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, BATTERY_CURRENT_MAX);
+		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=uint16_mapped_PAS;
+		  else PI_battery_current.setpoint=uint16_mapped_Throttle;
+
+
+
 		  ui16_dutycycle = PI_control(&PI_battery_current);
 #if (SPEEDSOURCE==INTERNAL)
 		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
@@ -891,7 +903,7 @@ void TimerCommutationEvent_Callback(void)
 	  }
 	  Get_Direction();
 
-switch (hall_sequence[ui8_direction_flag][ui8_hallstate]){
+switch (hall_sequence[0][ui8_hallstate]){ //ui8_direction_flag on first row of array
 case 1:
   {
     /* Next step: Step 1 Configuration -------------------------------------- */

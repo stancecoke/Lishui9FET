@@ -16,13 +16,16 @@
 #define I_FACTOR 200
 
 #define PERIOD 3000 //@48MHz for 16kHz PWM frequency
-#define THROTTLE_OFFSET 100
-#define THROTTLE_MAX 3000
+#define THROTTLE_OFFSET 620
+#define THROTTLE_MAX 2820
 #define BATTERY_CURRENT_MAX 1500
 
 #define WHEEL_CIRCUMFERENCE 2200
-#define GEAR_RATIO 11
+#define GEAR_RATIO 60
 #define PULSES_PER_REVOLUTION 1
 #define SPEEDSOURCE INTERNAL
+
+#define PAS_TIMEOUT 8000 // half a second
+#define RAMP_END 3000
 
 #endif /* INC_CONFIG_H_ */

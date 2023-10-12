@@ -12,8 +12,8 @@
 #define INTERNAL 0
 #define CAL_I 38
 
-#define P_FACTOR 500
-#define I_FACTOR 200
+#define P_FACTOR 1000
+#define I_FACTOR 500
 
 #define PERIOD 3000 //@48MHz for 16kHz PWM frequency
 #define THROTTLE_OFFSET 620

@@ -223,7 +223,7 @@ int main(void)
     /* Starting Error */
     Error_Handler();
   }
-  HAL_TIM_OC_Start_IT(&htim2, TIM_CHANNEL_2);
+
 
   LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
   LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
@@ -872,15 +872,6 @@ int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  if(htim->Instance == TIM2)
-  {
-    /* @Todo: Debug purpose */
-	 // TimerCommutationEvent_Callback();
-  }
-}
-
 void TimerCommutationEvent_Callback(void)
 {
 
@@ -919,28 +910,7 @@ void TimerCommutationEvent_Callback(void)
 switch (hall_sequence[0][ui8_hallstate]){ //ui8_direction_flag on first row of array
 case 1:
   {
-//    /* Next step: Step 1 Configuration -------------------------------------- */
-//    /*  Channel1 configuration */
-//    /* Same configuration as the previous step */
-//	  LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
-//	  LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1N, LL_TIM_OCMODE_PWM1);
-//	  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
-//	  LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1| LL_TIM_CHANNEL_CH1N );
-//
-//    /*  Channel2 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH2(TIM1, PERIOD);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
-//
-//
-//    /*  Channel3 configuration */
-//
-//    LL_TIM_CC_DisableChannel(TIM1,
-//            LL_TIM_CHANNEL_CH2  |
-//            LL_TIM_CHANNEL_CH3 |
-//            LL_TIM_CHANNEL_CH3N);
-//
-//    break;
+
     /*
             Phase A | Phase B | Phase C || Hall C | Hall B | Hall A
             +         -         NC         0        1        1
@@ -968,26 +938,7 @@ case 1:
 
 case 2:
   {
-//    /* Next step: Step 2 Configuration -------------------------------------- */
-//    /*  Channel2 configuration */
-//    /* Same configuration as the previous step */
-//	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
-//	    LL_TIM_OC_SetCompareCH2(TIM1, PERIOD);
-//	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2N);
-//
-//    /*  Channel3 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3N, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3| LL_TIM_CHANNEL_CH3N);
-//
-//
-//    /*  Channel1 configuration */
-//    LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1 |
-//            LL_TIM_CHANNEL_CH1N  |
-//            LL_TIM_CHANNEL_CH2 );
-//
-//    break;
+
     /*
         Phase A | Phase B | Phase C || Hall C | Hall B | Hall A
         NC        -         +          0        0        1
@@ -1014,25 +965,7 @@ case 2:
 
 case 3:
   {
-//    /* Next step: Step 3 Configuration -------------------------------------- */
-//    /*  Channel3 configuration */
-//    /* Same configuration as the previous step */
-//	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
-//	    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3N, LL_TIM_OCMODE_PWM1);
-//	    LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
-//	    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3|LL_TIM_CHANNEL_CH3N);
-//
-//    /*  Channel2 configuration */
-//	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1 |
-//	            LL_TIM_CHANNEL_CH2  |
-//	            LL_TIM_CHANNEL_CH2N );
-//
-//    /*  Channel1 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH1(TIM1, PERIOD);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
-//
-//    break;
+
 
     /*
       Phase A | Phase B | Phase C || Hall C | Hall B | Hall A
@@ -1060,25 +993,7 @@ case 3:
 
 case 4:
   {
-//    /* Next step: Step 4 Configuration -------------------------------------- */
-//    /*  Channel3 configuration */
-//	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1   |
-//		            LL_TIM_CHANNEL_CH3 |
-//		            LL_TIM_CHANNEL_CH3N);
-//
-//    /*  Channel1 configuration */
-//    /* Same configuration as the previous step */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH1(TIM1, PERIOD);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1N);
-//
-//    /*  Channel2 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2N, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2|LL_TIM_CHANNEL_CH2N);
-//
-//    break;
+
     /*
       Phase A | Phase B | Phase C || Hall C | Hall B | Hall A
       -         +         NC         0        0        1
@@ -1105,23 +1020,7 @@ case 4:
 
 case 5:
   {
-//    /* Next step: Step 5 Configuration -------------------------------------- */
-//    /*  Channel3 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH3(TIM1, PERIOD);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
-//
-//    /*  Channel1 configuration */
-//	LL_TIM_CC_DisableChannel(TIM1, LL_TIM_CHANNEL_CH1 |
-//	            LL_TIM_CHANNEL_CH1N   |
-//	            LL_TIM_CHANNEL_CH3);
-//
-//    /*  Channel2 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2N, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2|LL_TIM_CHANNEL_CH2N);
-//    break;
+
 
     /*
       Phase A | Phase B | Phase C || Hall C | Hall B | Hall A
@@ -1149,26 +1048,7 @@ case 5:
 
 case 6:
   {
-//    /* Next step: Step 6 Configuration -------------------------------------- */
-//    /*  Channel1 configuration */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1N, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1|LL_TIM_CHANNEL_CH1N);
-//
-//    /*  Channel3 configuration */
-//    /* Same configuration as the previous step */
-//    LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
-//    LL_TIM_OC_SetCompareCH3(TIM1, PERIOD);
-//    LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3N);
-//
-//    /*  Channel2 configuration */
-//	LL_TIM_CC_DisableChannel(TIM1,
-//	            LL_TIM_CHANNEL_CH2  |
-//	            LL_TIM_CHANNEL_CH2N |
-//	            LL_TIM_CHANNEL_CH3);
-//
-//    break;
+
     /*
            Phase A | Phase B | Phase C || Hall C | Hall B | Hall A
            +         NC        -          0        1        0

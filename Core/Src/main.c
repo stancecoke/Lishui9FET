@@ -85,7 +85,7 @@ static void MX_TIM1_Init(void);
 volatile uint16_t adcData[10]; //Buffer for ADC1 Input
 uint8_t ui8_adc_regular_flag =0;
 uint8_t ui8_direction_flag =0;
-uint16_t ui16_halltics =0;
+uint16_t ui16_halltics =5000;
 uint16_t ui16_timing_counter =0;
 uint16_t ui16_battery_current_offset =0;
 int16_t i16_battery_current =0;
@@ -293,8 +293,8 @@ int main(void)
 		  //
 		  PI_battery_current.recent_value=i16_battery_current;
 
-		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((BATTERY_CURRENT_MAX*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
-		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
+		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((BATTERY_CURRENT_MAX*(int32_t)(ui8_assist_level)))>>8, 1); // level in range 0...255
+		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=1;
 
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 1, BATTERY_CURRENT_MAX);
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=uint16_mapped_PAS;
@@ -303,6 +303,13 @@ int main(void)
 
 
 		  ui16_dutycycle = PI_control(&PI_battery_current);
+
+		  if(ui16_halltics>1000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
+		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)){
+			  LL_TIM_EnableAllOutputs(TIM1);
+			  ui16_halltics=1;
+		  }
+
 #if (SPEEDSOURCE==INTERNAL)
 		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
 #endif

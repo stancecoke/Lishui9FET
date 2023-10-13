@@ -167,7 +167,7 @@ int main(void)
   PI_battery_current.setpoint = 0;
   PI_battery_current.limit_output =PERIOD;
   PI_battery_current.max_step=5000;
-  PI_battery_current.shift=8;
+  PI_battery_current.shift=10;
   PI_battery_current.limit_i=PERIOD;
 
 
@@ -293,22 +293,21 @@ int main(void)
 		  //
 		  PI_battery_current.recent_value=i16_battery_current;
 
-		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((BATTERY_CURRENT_MAX*(int32_t)(ui8_assist_level)))>>8, 1); // level in range 0...255
-		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=1;
+		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((BATTERY_CURRENT_MAX*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
+		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
 
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, BATTERY_CURRENT_MAX);
-		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=uint16_mapped_PAS;
-		  else PI_battery_current.setpoint=uint16_mapped_Throttle;
+		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=(int32_t)uint16_mapped_PAS;
+		  else PI_battery_current.setpoint=(int32_t)uint16_mapped_Throttle;
 
 
 
 		  ui16_dutycycle = PI_control(&PI_battery_current);
 
-//		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
-//		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
-//			  LL_TIM_EnableAllOutputs(TIM1);
-//			  ui16_halltics=1;
-//		  	  }
+		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
+		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
+			  LL_TIM_EnableAllOutputs(TIM1);
+		  	  }
 
 #if (SPEEDSOURCE==INTERNAL)
 		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);

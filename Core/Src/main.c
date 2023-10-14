@@ -89,8 +89,11 @@ uint16_t ui16_halltics =5000;
 uint16_t ui16_timing_counter =0;
 uint16_t ui16_battery_current_offset =0;
 int16_t i16_battery_current =0;
+int16_t i16_battery_current_raw =0;
 int16_t i16_battery_current_cumulated =0;
 uint8_t ui8_cal_battery_current = CAL_I;
+uint16_t ui16_battery_current_max_raw = 0;
+
 uint16_t ui16_throttle =0;
 uint16_t ui16_throttle_offset = THROTTLE_OFFSET;
 uint8_t ui8_hallstate =0;
@@ -166,9 +169,11 @@ int main(void)
   PI_battery_current.gain_p=P_FACTOR;
   PI_battery_current.setpoint = 0;
   PI_battery_current.limit_output =PERIOD;
-  PI_battery_current.max_step=5000;
-  PI_battery_current.shift=10;
+  PI_battery_current.max_step=500;
+  PI_battery_current.shift=5;
   PI_battery_current.limit_i=PERIOD;
+
+  ui16_battery_current_max_raw = BATTERY_CURRENT_MAX/ui8_cal_battery_current;
 
 
   HAL_ADC_Start_DMA(&hadc,(uint32_t*)adcData, 10);
@@ -270,18 +275,24 @@ int main(void)
 
 		  i16_battery_current_cumulated-=i16_battery_current_cumulated>>4;
 		  i16_battery_current_cumulated+=adcData[8];
-		  i16_battery_current=((i16_battery_current_cumulated>>4)-ui16_battery_current_offset)*ui8_cal_battery_current;
+		  i16_battery_current_raw=((i16_battery_current_cumulated>>4)-ui16_battery_current_offset);
+		  i16_battery_current=i16_battery_current_raw*ui8_cal_battery_current;
 
 
 		  ui8_adc_regular_flag=0;
 	  	  }
 
-	  if(ui16_timing_counter>80){ //run control @200Hz
+	  if(ui16_timing_counter>16){ //run control @1kHz
 		  slow_loop_counter++;
-		  if(slow_loop_counter>9){//debug printout @20Hz
+		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",  ui16_PAS, uint16_mapped_PAS, ui16_dutycycle, i16_battery_current,(int16_t) PI_battery_current.setpoint, ui16_SPEEDx100_kph);
+			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",
+					 ui16_PAS, uint16_mapped_PAS,
+					 ui16_dutycycle,
+					 i16_battery_current,
+					 PI_battery_current.setpoint*ui8_cal_battery_current,
+					 ui16_SPEEDx100_kph);
 
 
 			 i=0;
@@ -291,12 +302,12 @@ int main(void)
 			 slow_loop_counter=0;
 		  	  }
 		  //
-		  PI_battery_current.recent_value=i16_battery_current;
+		  PI_battery_current.recent_value=i16_battery_current_raw;
 
-		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((BATTERY_CURRENT_MAX*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
+		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
 		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
 
-		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, BATTERY_CURRENT_MAX);
+		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=(int32_t)uint16_mapped_PAS;
 		  else PI_battery_current.setpoint=(int32_t)uint16_mapped_Throttle;
 
@@ -304,10 +315,15 @@ int main(void)
 
 		  ui16_dutycycle = PI_control(&PI_battery_current);
 
+
 		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
 		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
 			  LL_TIM_EnableAllOutputs(TIM1);
 		  	  }
+
+		  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
+		  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
+		  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
 
 #if (SPEEDSOURCE==INTERNAL)
 		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
@@ -838,8 +854,8 @@ uint32_t PI_control (PI_control_t* PI_c)
 
 
   if (PI_c->integral_part > PI_c->limit_i << PI_c->shift) PI_c->integral_part = PI_c->limit_i << PI_c->shift;
-  if (PI_c->integral_part < -(PI_c->limit_i << PI_c->shift)) PI_c->integral_part = -(PI_c->limit_i << PI_c->shift);
-  if(!(PI_c->setpoint))PI_c->integral_part = 0 ; //reset integral part if PWM is disabled
+  if (PI_c->integral_part < 0) PI_c->integral_part = 0;
+  if(!LL_TIM_IsEnabledAllOutputs(TIM1)&&!PI_c->setpoint)PI_c->integral_part = 0 ; //reset integral part if PWM is disabled
 
     //avoid too big steps in one loop run
   if (p_part+PI_c->integral_part > PI_c->out+PI_c->max_step) PI_c->out+=PI_c->max_step;
@@ -849,7 +865,7 @@ uint32_t PI_control (PI_control_t* PI_c)
 
   if (PI_c->out>PI_c->limit_output << PI_c->shift) PI_c->out = PI_c->limit_output<< PI_c->shift;
   if (PI_c->out<0) PI_c->out=0; // allow no negative voltage.
-  if(!(PI_c->setpoint))PI_c->out = 0 ; //reset output if PWM is disabled
+ // if(!LL_TIM_IsEnabledAllOutputs(TIM1)&&!PI_c->setpoint)PI_c->out = 0 ; //reset output if PWM is disabled
 
   return (PI_c->out>>PI_c->shift);
 }
@@ -913,7 +929,7 @@ void TimerCommutationEvent_Callback(void)
 	  Get_Direction();
 
 
-switch (hall_sequence[0][ui8_hallstate]){ //ui8_direction_flag on first row of array
+switch (hall_sequence[1][ui8_hallstate]){ //ui8_direction_flag on first row of array
 case 1:
   {
 
@@ -927,7 +943,6 @@ case 1:
             /*  Channel1 configuration */
 	  	  if(ui16_dutycycle){
             LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
-            LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
             LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1 | LL_TIM_CHANNEL_CH1N);
 	  	  	  }
 	  	  else{
@@ -970,7 +985,6 @@ case 2:
         /*  Channel3 configuration - CH3:PWM1, CH3N:PWM2 */
       if(ui16_dutycycle){
         LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
-        LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
         LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3 | LL_TIM_CHANNEL_CH3N);
         }
       else{
@@ -1003,7 +1017,6 @@ case 3:
       /*  Channel3 configuration */
     if(ui16_dutycycle){
       LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH3, LL_TIM_OCMODE_PWM1);
-      LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
       LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH3 | LL_TIM_CHANNEL_CH3N);
       }
     else{
@@ -1030,7 +1043,6 @@ case 4:
       /*  Channel2 configuration */
      if(ui16_dutycycle){
       LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
-      LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
       LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2 | LL_TIM_CHANNEL_CH2N);
       }
      else{
@@ -1063,7 +1075,6 @@ case 5:
       /*  Channel2 configuration */
       if(ui16_dutycycle){
        LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_PWM1);
-       LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
        LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH2 | LL_TIM_CHANNEL_CH2N);
        }
       else{
@@ -1090,7 +1101,6 @@ case 6:
            /*  Channel1 configuration */
   	  if(ui16_dutycycle){
         LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
-        LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
         LL_TIM_CC_EnableChannel(TIM1, LL_TIM_CHANNEL_CH1 | LL_TIM_CHANNEL_CH1N);
   	  	  }
   	  else{

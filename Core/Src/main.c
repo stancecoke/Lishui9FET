@@ -26,6 +26,7 @@
 //#include <stdio.h>
 #include "config.h"
 #include "print.h"
+#include "display_kingmeter.h"
 
 /* USER CODE END Includes */
 
@@ -81,6 +82,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_ADC_Init(void);
 static void MX_TIM1_Init(void);
+void kingmeter_update(void);
 /* USER CODE BEGIN PFP */
 volatile uint16_t adcData[10]; //Buffer for ADC1 Input
 uint8_t ui8_adc_regular_flag =0;
@@ -102,9 +104,11 @@ uint8_t uwStep=0;
 uint8_t slow_loop_counter=0;
 uint8_t i=0;
 uint8_t ui8_PAS_flag=0;
+uint8_t ui8_UART_flag=0;
 uint16_t ui16_PAS_counter=PAS_TIMEOUT+1;
 uint16_t ui16_PAS=0;
 uint8_t ui8_SPEED_flag=0;
+uint8_t ui8_Push_Assist_flag=0;
 uint8_t ui8_assist_level=127;
 uint16_t ui16_SPEED_counter=0;
 uint16_t ui16_SPEED=0;
@@ -120,7 +124,13 @@ uint8_t hall_sequence[2][7]={
 uint16_t ui16_dutycycle = 0;
 uint16_t ui16_throttle_cumulated = 0;
 char tx_buffer[100];
+
+int16_t battery_percent_fromcapacity = 50; 			//Calculation of used watthours not implemented yet
+
+int16_t power;
+
 PI_control_t PI_battery_current;
+KINGMETER_t KM;
 
 /* USER CODE END PFP */
 
@@ -163,6 +173,7 @@ int main(void)
   MX_TIM2_Init();
   MX_ADC_Init();
   MX_TIM1_Init();
+  KingMeter_Init (&KM);
   /* USER CODE BEGIN 2 */
 
   PI_battery_current.gain_i=I_FACTOR;
@@ -253,6 +264,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if(ui8_UART_flag){
+
+	  }
 	  if(ui8_SPEED_flag&&ui16_SPEED_counter>100){
 		  ui16_SPEED=ui16_SPEED_counter;
 		  ui16_SPEED_counter=0;
@@ -792,6 +806,11 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
 	//nothing to do here....
 }
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
+{
+	ui8_UART_flag=1;
+
+}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -1120,7 +1139,76 @@ case 6:
 
   }
 	} //end switch
-}  /* USER CODE END 4 */
+}
+
+void kingmeter_update(void)
+{
+    /* Prepare Tx parameters */
+
+    if(battery_percent_fromcapacity > 10) //not updated yet
+    {
+        KM.Tx.Battery = KM_BATTERY_NORMAL;
+    }
+    else
+    {
+        KM.Tx.Battery = KM_BATTERY_LOW;
+    }
+
+
+#if (SPEEDSOURCE  == EXTERNAL)
+    	KM.Tx.Wheeltime_ms = ((MS.Speed>>3)*PULSES_PER_REVOLUTION); //>>3 because of 8 kHz counter frequency, so 8 tics per ms
+#else
+        if(__HAL_TIM_GET_COUNTER(&htim2) < 12000)
+        {
+    	KM.Tx.Wheeltime_ms = (ui16_SPEED*GEAR_RATIO*6)>>9; //>>9 because of 500kHZ timer2 frequency, 512 tics per ms should be OK *6 because of 6 hall interrupts per electric revolution.
+
+    }
+    else
+    {
+        KM.Tx.Wheeltime_ms = 64000;
+    }
+
+#endif
+
+    KM.Tx.Error = KM_ERROR_NONE;
+
+
+    KM.Tx.Current_x10 = (uint16_t) (i16_battery_current/100); //MS.Battery_Current is in mA
+
+
+
+
+
+    /* Apply Rx parameters */
+
+    ui8_assist_level = KM.Rx.AssistLevel;
+
+    if(KM.Rx.Headlight == KM_HEADLIGHT_OFF)
+        {
+        	//HAL_GPIO_WritePin(LIGHT_GPIO_Port, LIGHT_Pin, GPIO_PIN_RESET);
+
+        }
+        else // KM_HEADLIGHT_ON, KM_HEADLIGHT_LOW, KM_HEADLIGHT_HIGH
+        {
+        	//HAL_GPIO_WritePin(LIGHT_GPIO_Port, LIGHT_Pin, GPIO_PIN_SET);
+
+        }
+
+
+    if(KM.Rx.PushAssist == KM_PUSHASSIST_ON)
+    {
+    	ui8_Push_Assist_flag=1;
+    }
+    else
+    {
+    	ui8_Push_Assist_flag=0;
+    }
+//    MP.speedLimit=KM.Rx.SPEEDMAX_Limit;
+//    MP.battery_current_max = KM.Rx.CUR_Limit_mA;
+
+
+
+}/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

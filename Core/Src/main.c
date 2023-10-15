@@ -83,13 +83,14 @@ static void MX_TIM2_Init(void);
 static void MX_ADC_Init(void);
 static void MX_TIM1_Init(void);
 void kingmeter_update(void);
+void print_debug_info(void);
 /* USER CODE BEGIN PFP */
 volatile uint16_t adcData[10]; //Buffer for ADC1 Input
 uint8_t ui8_adc_regular_flag =0;
 uint8_t ui8_direction_flag =0;
 uint16_t ui16_halltics =5000;
 uint16_t ui16_timing_counter =0;
-uint16_t ui16_battery_current_offset =0;
+static uint16_t ui16_battery_current_offset =0;
 int16_t i16_battery_current =0;
 int16_t i16_battery_current_raw =0;
 int16_t i16_battery_current_cumulated =0;
@@ -265,7 +266,8 @@ int main(void)
   while (1)
   {
 	  if(ui8_UART_flag){
-
+		  KingMeter_Service(&KM);
+		  ui8_UART_flag=0;
 	  }
 	  if(ui8_SPEED_flag&&ui16_SPEED_counter>100){
 		  ui16_SPEED=ui16_SPEED_counter;
@@ -301,19 +303,8 @@ int main(void)
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			 sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",
-					 ui16_PAS, uint16_mapped_PAS,
-					 ui16_dutycycle,
-					 i16_battery_current,
-					 PI_battery_current.setpoint*ui8_cal_battery_current,
-					 ui16_SPEEDx100_kph);
-
-
-			 i=0;
-			 while (tx_buffer[i] != '\0'){i++;}
-
-			 HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_buffer, i);
-			 slow_loop_counter=0;
+			//  print_debug_info();
+			  slow_loop_counter=0;
 		  	  }
 		  //
 		  PI_battery_current.recent_value=i16_battery_current_raw;
@@ -680,7 +671,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 56000;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -807,6 +798,22 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle)
 	//nothing to do here....
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
+{
+	ui8_UART_flag=1;
+
+}
+
+//void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+//{
+//  /* Prevent unused argument(s) compilation warning */
+//  UNUSED(huart);
+//  UNUSED(Size);
+//  ui8_UART_flag=1;
+//  /* NOTE : This function should not be modified, when the callback is needed,
+//            the HAL_UARTEx_RxEventCallback can be implemented in the user file.
+//   */
+//}
+void UART_IdleItCallback(void)
 {
 	ui8_UART_flag=1;
 
@@ -1141,6 +1148,20 @@ case 6:
 	} //end switch
 }
 
+void print_debug_info(void){
+		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",
+				ui16_PAS,
+				ui16_battery_current_offset,
+				ui16_dutycycle,
+				i16_battery_current,
+				PI_battery_current.setpoint*ui8_cal_battery_current,
+				ui16_SPEEDx100_kph);
+		i=0;
+		while (tx_buffer[i] != '\0'){i++;}
+
+		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_buffer, i);
+}
+
 void kingmeter_update(void)
 {
     /* Prepare Tx parameters */
@@ -1160,7 +1181,7 @@ void kingmeter_update(void)
 #else
         if(__HAL_TIM_GET_COUNTER(&htim2) < 12000)
         {
-    	KM.Tx.Wheeltime_ms = (ui16_SPEED*GEAR_RATIO*6)>>9; //>>9 because of 500kHZ timer2 frequency, 512 tics per ms should be OK *6 because of 6 hall interrupts per electric revolution.
+    	KM.Tx.Wheeltime_ms = (ui16_halltics*GEAR_RATIO*6)>>9; //>>9 because of 500kHZ timer2 frequency, 512 tics per ms should be OK *6 because of 6 hall interrupts per electric revolution.
 
     }
     else

@@ -180,8 +180,9 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->Tx.Current_x10                  = 0;
 
 
-    //Start UART with DMA
-    if (HAL_UART_Receive_DMA(&huart1, (uint8_t *)KM_ctx->RxBuff, 64) != HAL_OK)
+    //Start UART with DMA  HAL_UART_Receive_DMA
+
+    if (UART_Start_Receive_DMA(&huart1, (uint8_t *)KM_ctx->RxBuff, 64) != HAL_OK)
      {
  	   Error_Handler();
      }
@@ -220,7 +221,7 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     static uint8_t  Rx_message_length;
     static uint8_t  KM_Message[32];
 
-    recent_pointer_position = 64-DMA1_Channel5->CNDTR;
+    recent_pointer_position = 64-DMA1_Channel3->CNDTR;
 
     if(recent_pointer_position>last_pointer_position){
     	Rx_message_length=recent_pointer_position-last_pointer_position;
@@ -382,8 +383,11 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     			            //printf_("%d, %d \n ",TxCnt+4,KM_Message[2]);
     			        }
 
-
-
+//
+//    			        if (UART_Start_Receive_DMA(&huart1, (uint8_t *)KM_ctx->RxBuff, 64) != HAL_OK)
+//    			         {
+//    			     	   Error_Handler();
+//    			         }
 
 
     }

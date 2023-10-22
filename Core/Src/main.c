@@ -124,6 +124,7 @@ uint8_t hall_sequence[2][7]={
 
 uint16_t ui16_dutycycle = 0;
 uint16_t ui16_throttle_cumulated = 0;
+uint16_t ui16_torque_cumulated = 0;
 char tx_buffer[100];
 
 int16_t battery_percent_fromcapacity = 50; 			//Calculation of used watthours not implemented yet
@@ -181,7 +182,7 @@ int main(void)
   PI_battery_current.gain_p=P_FACTOR;
   PI_battery_current.setpoint = 0;
   PI_battery_current.limit_output =PERIOD;
-  PI_battery_current.max_step=500;
+  PI_battery_current.max_step=250;
   PI_battery_current.shift=5;
   PI_battery_current.limit_i=PERIOD;
 
@@ -281,6 +282,9 @@ int main(void)
 	  if(ui8_PAS_flag&&ui16_PAS_counter>100){
 		  ui16_PAS=ui16_PAS_counter;
 		  ui16_PAS_counter=0;
+		  ui16_torque_cumulated -= ui16_torque_cumulated>>5;
+		  //Thun!!!
+		  if(adcData[2]<TORQUE_OFFSET)ui16_torque_cumulated += (TORQUE_OFFSET-adcData[2]);
 		  ui8_PAS_flag=0;
 	  }
 
@@ -293,7 +297,6 @@ int main(void)
 		  i16_battery_current_cumulated+=adcData[8];
 		  i16_battery_current_raw=((i16_battery_current_cumulated>>4)-ui16_battery_current_offset);
 		  i16_battery_current=i16_battery_current_raw*ui8_cal_battery_current;
-
 
 		  ui8_adc_regular_flag=0;
 	  	  }
@@ -308,9 +311,21 @@ int main(void)
 		  	  }
 		  //
 		  PI_battery_current.recent_value=i16_battery_current_raw;
+#if (TS_COEF) //torque-sensor mode
+			//calculate current target form torque, cadence and assist level
+		    uint16_mapped_PAS = (TS_COEF*(int16_t)(ui8_assist_level)* (ui16_torque_cumulated>>5)/ui16_PAS)>>8; //>>5 aus Mittelung Ã¼ber eine Kurbelumdrehung, >>8 aus KM5S-Protokoll Assistlevel 0..255
 
-		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 1); // level in range 0...255
+			//limit currest target to max value
+			if(uint16_mapped_PAS>ui16_battery_current_max_raw) uint16_mapped_PAS=ui16_battery_current_max_raw;
+			//set target to zero, if pedals are not turning
+			if(ui16_PAS_counter>PAS_TIMEOUT){
+				uint16_mapped_PAS=0;
+				if(ui16_torque_cumulated>0)ui16_torque_cumulated--; //ramp down cumulated torque value
+			}
+#else
+		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
 		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
+#endif
 
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=(int32_t)uint16_mapped_PAS;
@@ -671,7 +686,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 56000;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;

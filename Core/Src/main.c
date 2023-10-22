@@ -107,7 +107,7 @@ uint8_t i=0;
 uint8_t ui8_PAS_flag=0;
 uint8_t ui8_UART_flag=0;
 uint16_t ui16_PAS_counter=PAS_TIMEOUT+1;
-uint16_t ui16_PAS=0;
+uint16_t ui16_PAS=64000;
 uint8_t ui8_SPEED_flag=0;
 uint8_t ui8_Push_Assist_flag=0;
 uint8_t ui8_assist_level=127;
@@ -303,13 +303,13 @@ int main(void)
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			//  print_debug_info();
+			  print_debug_info();
 			  slow_loop_counter=0;
 		  	  }
 		  //
 		  PI_battery_current.recent_value=i16_battery_current_raw;
 
-		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
+		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 1); // level in range 0...255
 		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
 
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
@@ -955,7 +955,7 @@ void TimerCommutationEvent_Callback(void)
 	  Get_Direction();
 
 
-switch (hall_sequence[1][ui8_hallstate]){ //ui8_direction_flag on first row of array
+switch (hall_sequence[0][ui8_hallstate]){ //ui8_direction_flag on first row of array
 case 1:
   {
 
@@ -1149,9 +1149,10 @@ case 6:
 }
 
 void print_debug_info(void){
-		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d\r\n ",
+		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d, %d\r\n ",
 				ui16_PAS,
-				ui16_battery_current_offset,
+				adcData[2],
+				adcData[4],
 				ui16_dutycycle,
 				i16_battery_current,
 				PI_battery_current.setpoint*ui8_cal_battery_current,

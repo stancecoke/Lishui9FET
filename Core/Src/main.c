@@ -96,7 +96,7 @@ int16_t i16_battery_current_raw =0;
 int16_t i16_battery_current_cumulated =0;
 uint8_t ui8_cal_battery_current = CAL_I;
 uint16_t ui16_battery_current_max_raw = 0;
-
+int32_t i32_motor_current_raw =0;
 uint16_t ui16_throttle =0;
 uint16_t ui16_throttle_offset = THROTTLE_OFFSET;
 uint8_t ui8_hallstate =0;
@@ -183,7 +183,7 @@ int main(void)
   PI_battery_current.setpoint = 0;
   PI_battery_current.limit_output =PERIOD;
   PI_battery_current.max_step=250;
-  PI_battery_current.shift=5;
+  PI_battery_current.shift=12;
   PI_battery_current.limit_i=PERIOD;
 
   ui16_battery_current_max_raw = BATTERY_CURRENT_MAX/ui8_cal_battery_current;
@@ -298,6 +298,16 @@ int main(void)
 		  i16_battery_current_raw=((i16_battery_current_cumulated>>4)-ui16_battery_current_offset);
 		  i16_battery_current=i16_battery_current_raw*ui8_cal_battery_current;
 
+		  PI_battery_current.recent_value=i16_battery_current_raw;
+
+		  ui16_dutycycle = PI_control(&PI_battery_current);
+		  // Motorcurrent = Battery current / DutyCycle
+		  i32_motor_current_raw =i16_battery_current_raw*PERIOD/ui16_dutycycle;
+		  // limit Motorcurrent
+		  ui16_dutycycle = map(i32_motor_current_raw, 1200, 1350, ui16_dutycycle,0);
+		  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
+		  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
+		  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
 		  ui8_adc_regular_flag=0;
 	  	  }
 
@@ -310,7 +320,6 @@ int main(void)
 			  slow_loop_counter=0;
 		  	  }
 		  //
-		  PI_battery_current.recent_value=i16_battery_current_raw;
 #if (TS_COEF) //torque-sensor mode
 			//calculate current target form torque, cadence and assist level
 		    uint16_mapped_PAS = (TS_COEF*(int16_t)(ui8_assist_level)* (ui16_torque_cumulated>>5)/ui16_PAS)>>8; //>>5 aus Mittelung Ã¼ber eine Kurbelumdrehung, >>8 aus KM5S-Protokoll Assistlevel 0..255
@@ -331,19 +340,10 @@ int main(void)
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=(int32_t)uint16_mapped_PAS;
 		  else PI_battery_current.setpoint=(int32_t)uint16_mapped_Throttle;
 
-
-
-		  ui16_dutycycle = PI_control(&PI_battery_current);
-
-
 		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
 		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
 			  LL_TIM_EnableAllOutputs(TIM1);
 		  	  }
-
-		  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
-		  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
-		  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
 
 #if (SPEEDSOURCE==INTERNAL)
 		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
@@ -1166,8 +1166,8 @@ case 6:
 void print_debug_info(void){
 		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d, %d\r\n ",
 				ui16_PAS,
-				adcData[2],
-				adcData[4],
+				ui8_direction_flag,
+				i32_motor_current_raw*ui8_cal_battery_current,
 				ui16_dutycycle,
 				i16_battery_current,
 				PI_battery_current.setpoint*ui8_cal_battery_current,

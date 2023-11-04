@@ -32,44 +32,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // Definitions
 #define KM_MAX_WHEELTIME 0x0DAC          // Maximum Wheeltime reported to the display (e.g. when wheel is stopped)
 
-#define KM_PASDIR_FORWARD       0x00
-#define KM_PASDIR_BACKWARD      0x01
-
-#define KM_HND_HL_NO            0x00    
-#define KM_HND_HL_YES           0x01    
-
-#define KM_HND_HF_NO            0x00
-#define KM_HND_HF_YES           0x01
-
-
-#define KM_WHEELSIZE_8           638
-#define KM_WHEELSIZE_10          798
-#define KM_WHEELSIZE_12          958
-#define KM_WHEELSIZE_14         1117
-
-#define KM_WHEELSIZE_16         1277
-#define KM_WHEELSIZE_18         1436
-#define KM_WHEELSIZE_20         1596
-#define KM_WHEELSIZE_22         1756
-#define KM_WHEELSIZE_24         1915
-#define KM_WHEELSIZE_26         2075
-#define KM_WHEELSIZE_700        2154
-#define KM_WHEELSIZE_28         2234
-
-#define KM_WHEELSIZE_29         2294
-
-
 
 
 typedef struct
 {
     // Parameters received from display in setting mode:
     uint16_t WheelSize_mm;              // Unit: 1mm
-    uint8_t  PAS_RUN_Direction;         // KM_PASDIR_FORWARD / KM_PASDIR_BACKWARD
+    uint8_t  DoubleGearRatio;         // KM_PASDIR_FORWARD / KM_PASDIR_BACKWARD
     uint8_t  PAS_SCN_Tolerance;         // Number of PAS signals to start the motor
-    uint8_t  PAS_N_Ratio;               // 0..255 PAS ratio
-    uint8_t  HND_HL_ThrParam;           // KM_HND_HL_NO / KM_HND_HL_YES
-    uint8_t  HND_HF_ThrParam;           // KM_HND_HF_NO / KM_HND_HF_YES
+    uint8_t  Gear_Ratio;               // Gear Ratio of Motor
+    uint8_t  LegalFlag;           // KM_HND_HL_NO / KM_HND_HL_YES
+    uint8_t  SS_Ext_Int;           // KM_HND_HF_NO / KM_HND_HF_YES
     uint8_t  SYS_SSP_SlowStart;         // 1..4 Level of soft ramping at start
     uint8_t  SPS_SpdMagnets;            // Number of magnets of speedsensor
     uint16_t VOL_1_UnderVolt_x10;       // Unit: 0.1V

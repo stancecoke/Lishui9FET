@@ -255,4 +255,4 @@ ProjectManager.DeviceId=STM32F031C6Tx
 ProjectManager.LibraryCopy=1
 PA7.Signal=ADC_IN7
 PA6.Locked=true
-isbadioc=true
+isbadioc=false

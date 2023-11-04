@@ -106,7 +106,7 @@ UART_HandleTypeDef huart1;
  		120
  };
 
-
+ const uint16_t WheelSize_LookUp[8]= {1277,1436,1596,1756,1915,2075,2154,2234};
 
 
 
@@ -119,7 +119,6 @@ uint8_t  highByte(uint16_t word);
 uint8_t pas_tolerance  = 0;
 uint8_t wheel_magnets = 1;
 uint8_t vcutoff = 30;
-//uint16_t wheel_circumference = 2200;
 uint8_t spd_max1 = 25;
 uint8_t ui8_RxLength=1;
 
@@ -148,11 +147,11 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->RxCnt                           = 0;
 
     // Settings received from display:
-    KM_ctx->Settings.PAS_RUN_Direction      = KM_PASDIR_FORWARD;
+    KM_ctx->Settings.DoubleGearRatio      	= 0;
     KM_ctx->Settings.PAS_SCN_Tolerance      = (uint8_t) pas_tolerance;
-    KM_ctx->Settings.PAS_N_Ratio            = 255;
-    KM_ctx->Settings.HND_HL_ThrParam        = KM_HND_HL_NO;
-    KM_ctx->Settings.HND_HF_ThrParam        = KM_HND_HF_NO;
+    KM_ctx->Settings.Gear_Ratio            	= 255;
+    KM_ctx->Settings.LegalFlag        		= 0;
+    KM_ctx->Settings.SS_Ext_Int        		= 0;
     KM_ctx->Settings.SYS_SSP_SlowStart      = 1;
     KM_ctx->Settings.SPS_SpdMagnets         = (uint8_t) wheel_magnets;
     KM_ctx->Settings.VOL_1_UnderVolt_x10    = (uint16_t) (vcutoff * 10);
@@ -171,7 +170,7 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->Rx.CruiseControl                = KM_CRUISE_OFF;
     KM_ctx->Rx.OverSpeed                    = KM_OVERSPEED_NO;
     KM_ctx->Rx.SPEEDMAX_Limit           = (uint16_t) (spd_max1 * 10);
-    KM_ctx->Rx.CUR_Limit_mA                = 150;
+    KM_ctx->Rx.CUR_Limit_mA                = BATTERY_CURRENT_MAX;
 
     // Parameters to be send to display in operation mode:
     KM_ctx->Tx.Battery                      = KM_BATTERY_NORMAL;
@@ -309,16 +308,16 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     			            	if(!CheckSum) //low-byte and high-byte
     			            		{
     			            		kingmeter_update();
-    			                KM_ctx->Settings.PAS_RUN_Direction   = (KM_Message[4] & 0x80) >> 7; // KM_PASDIR_FORWARD / KM_PASDIR_BACKWARD
-    			                KM_ctx->Settings.PAS_SCN_Tolerance   =  KM_Message[5];              // 2..9
-    			                KM_ctx->Settings.PAS_N_Ratio         =  KM_Message[6];              // 0..255
-    			                KM_ctx->Settings.HND_HL_ThrParam     = (KM_Message[7] & 0x80) >> 7; // KM_HND_HL_NO / KM_HND_HL_YES
-    			                KM_ctx->Settings.HND_HF_ThrParam     = (KM_Message[7] & 0x40) >> 6; // KM_HND_HF_NO / KM_HND_HF_YES
-    			                KM_ctx->Settings.SYS_SSP_SlowStart   =  KM_Message[8];              // 1..9
-    			                KM_ctx->Settings.SPS_SpdMagnets      =  KM_Message[9];             // 1..4
+    			                KM_ctx->Settings.DoubleGearRatio   = ((KM_Message[4]>>6)&1)+1; // ist eigentlich PAS direction
+    			               // KM_ctx->Settings.PAS_SCN_Tolerance   =  KM_Message[5];              //
+    			                KM_ctx->Settings.Gear_Ratio    		  =  KM_Message[4]&63;              // Bits 0-5 von Byte 4, ist eigentlich PAS Empfindlichkeit SCN
+    			                KM_ctx->Settings.LegalFlag     		  = (KM_Message[6]>>6)&1; // Ist eigentlich HND HL, Byte 6, Bit 6
+    			                KM_ctx->Settings.SS_Ext_Int     	  = (KM_Message[6]>>7); // Speedsensor Extern=0/Intern=1, ist eigentlich HND HF, Byte 6, Bit 7
+    			                //KM_ctx->Settings.SYS_SSP_SlowStart   =  KM_Message[8];              // 1..9
+    			                KM_ctx->Settings.SPS_SpdMagnets      =  KM_Message[6]&7;             // //Bits 0 bis 2 von Byte 10
     			                KM_ctx->Settings.VOL_1_UnderVolt_x10 = (((uint16_t) KM_Message[11])<<8) | KM_Message[11];
-    			                KM_ctx->Settings.WheelSize_mm        = (((uint16_t) KM_Message[12])<<8) | KM_Message[13];
-    			    	        KM_ctx->Rx.SPEEDMAX_Limit          		= KM_Message[11];
+    			                KM_ctx->Settings.WheelSize_mm        = WheelSize_LookUp[(KM_Message[10]&7)]; //Bits 0 bis 2 von Byte 10
+    			    	        KM_ctx->Rx.SPEEDMAX_Limit          		= ((KM_Message[10]>>3)+10)*100;
     			    	        KM_ctx->Rx.CUR_Limit_mA                 = (KM_Message[8]&0x3F)*500;
 
     			    	       // if(KM_ctx->Rx.CUR_Limit_mA==21500)autodetect();

@@ -108,6 +108,7 @@ uint8_t ui8_PAS_flag=0;
 uint8_t ui8_UART_flag=0;
 uint16_t ui16_PAS_counter=PAS_TIMEOUT+1;
 uint16_t ui16_PAS=64000;
+uint16_t ui16_setpoint_temp=64000;
 uint8_t ui8_SPEED_flag=0;
 uint8_t ui8_Push_Assist_flag=0;
 uint8_t ui8_assist_level=127;
@@ -320,6 +321,8 @@ int main(void)
 			  slow_loop_counter=0;
 		  	  }
 		  //
+		  if(KM.Settings.SS_Ext_Int)ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
+		  else ui16_SPEEDx100_kph = external_tics_to_speedx100 (ui16_SPEED);
 #if (TS_COEF) //torque-sensor mode
 			//calculate current target form torque, cadence and assist level
 		    uint16_mapped_PAS = (TS_COEF*(int16_t)(ui8_assist_level)* (ui16_torque_cumulated>>5)/ui16_PAS)>>8; //>>5 aus Mittelung Ã¼ber eine Kurbelumdrehung, >>8 aus KM5S-Protokoll Assistlevel 0..255
@@ -335,20 +338,31 @@ int main(void)
 		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
 		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
 #endif
-
+		  //check for Throttle override
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
-		  if(uint16_mapped_PAS>uint16_mapped_Throttle)PI_battery_current.setpoint=(int32_t)uint16_mapped_PAS;
-		  else PI_battery_current.setpoint=(int32_t)uint16_mapped_Throttle;
+		  if(uint16_mapped_PAS>uint16_mapped_Throttle)ui16_setpoint_temp=(int32_t)uint16_mapped_PAS;
+		  else ui16_setpoint_temp=(int32_t)uint16_mapped_Throttle;
 
+		  // limit speed if legal Flag is set
+		  if(KM.Settings.LegalFlag){
+			if(ui16_PAS_counter<PAS_TIMEOUT){//ramp down setpoint at speed limit
+				PI_battery_current.setpoint=map(ui16_SPEEDx100_kph, KM.Rx.SPEEDMAX_Limit,KM.Rx.SPEEDMAX_Limit+200,ui16_setpoint_temp,0);
+				}
+			else{ //limit to 6km/h if pedals are not turning
+				PI_battery_current.setpoint=map(ui16_SPEEDx100_kph, 500,700,ui16_setpoint_temp,0);
+				}
+		  	  }
+		  else PI_battery_current.setpoint=ui16_setpoint_temp;
+
+		  // disable PWM if motor is at standstill and dutycycle is zero
 		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
+		  // enable PWM if motor is at standstill and power is wanted
 		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
 			  LL_TIM_EnableAllOutputs(TIM1);
 		  	  }
 
-#if (SPEEDSOURCE==INTERNAL)
-		  ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
-#endif
-		  ui16_timing_counter=0;
+
+		   ui16_timing_counter=0;
 
 	  	  }
 	  } //end while (1)
@@ -911,11 +925,11 @@ uint32_t PI_control (PI_control_t* PI_c)
   return (PI_c->out>>PI_c->shift);
 }
 int16_t internal_tics_to_speedx100 (uint32_t tics){
-	return WHEEL_CIRCUMFERENCE*50*3600/(6*GEAR_RATIO*tics);
+	return KM.Settings.WheelSize_mm*50*3600/(6*KM.Settings.Gear_Ratio*KM.Settings.DoubleGearRatio*tics);
 }
 
 int16_t external_tics_to_speedx100 (uint32_t tics){
-	return WHEEL_CIRCUMFERENCE*16*360/(PULSES_PER_REVOLUTION*tics); //Faktor kontrollieren! 16kHz Zählerfrequenz
+	return KM.Settings.WheelSize_mm*16*360/(KM.Settings.SPS_SpdMagnets*tics); //Faktor kontrollieren! 16kHz Zählerfrequenz
 }
 
 int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max)
@@ -1192,20 +1206,16 @@ void kingmeter_update(void)
     }
 
 
-#if (SPEEDSOURCE  == EXTERNAL)
-    	KM.Tx.Wheeltime_ms = ((MS.Speed>>3)*PULSES_PER_REVOLUTION); //>>3 because of 8 kHz counter frequency, so 8 tics per ms
-#else
+    if(KM.Settings.SS_Ext_Int)
+    	KM.Tx.Wheeltime_ms = (ui16_SPEED*KM.Settings.SPS_SpdMagnets); //>>3 because of 8 kHz counter frequency, so 8 tics per ms
+    else
         if(__HAL_TIM_GET_COUNTER(&htim2) < 12000)
         {
-    	KM.Tx.Wheeltime_ms = (ui16_halltics*GEAR_RATIO*6)>>9; //>>9 because of 500kHZ timer2 frequency, 512 tics per ms should be OK *6 because of 6 hall interrupts per electric revolution.
+    	KM.Tx.Wheeltime_ms = (ui16_halltics*KM.Settings.Gear_Ratio*KM.Settings.DoubleGearRatio*6)>>9; //>>9 because of 500kHZ timer2 frequency, 512 tics per ms should be OK *6 because of 6 hall interrupts per electric revolution.
 
-    }
-    else
-    {
-        KM.Tx.Wheeltime_ms = 64000;
-    }
+        }
+        else KM.Tx.Wheeltime_ms = 64000;
 
-#endif
 
     KM.Tx.Error = KM_ERROR_NONE;
 
@@ -1241,6 +1251,7 @@ void kingmeter_update(void)
     	ui8_Push_Assist_flag=0;
     }
 //    MP.speedLimit=KM.Rx.SPEEDMAX_Limit;
+    ui16_battery_current_max_raw = KM.Rx.CUR_Limit_mA/ui8_cal_battery_current;
 //    MP.battery_current_max = KM.Rx.CUR_Limit_mA;
 
 

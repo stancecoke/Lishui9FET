@@ -112,7 +112,7 @@ uint16_t ui16_setpoint_temp=64000;
 uint8_t ui8_SPEED_flag=0;
 uint8_t ui8_Push_Assist_flag=0;
 uint8_t ui8_assist_level=127;
-uint16_t ui16_SPEED_counter=0;
+uint16_t ui16_SPEED_counter=64000;
 uint16_t ui16_SPEED=0;
 uint16_t ui16_SPEEDx100_kph=0;
 uint16_t uint16_mapped_PAS=0;
@@ -328,7 +328,7 @@ int main(void)
 			  slow_loop_counter=0;
 		  	  }
 		  // reset speed if, no speed pulse occurs
-		  if(ui16_SPEED_counter<12000){
+		  if(ui16_SPEED_counter>63000){
 			  ui16_SPEEDx100_kph=0;
 			  ui16_SPEED=64000;
 		  }
@@ -1194,7 +1194,7 @@ case 6:
 void print_debug_info(void){
 		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d, %d\r\n ",
 				ui16_PAS,
-				ui8_direction_flag,
+				ui16_SPEED,
 				i32_motor_current_raw*ui8_cal_battery_current,
 				ui16_dutycycle,
 				i16_battery_current,
@@ -1220,7 +1220,7 @@ void kingmeter_update(void)
     }
 
 
-    if(ui16_SPEED_counter<12000)KM.Tx.Wheeltime_ms = (ui16_SPEED*KM.Settings.SPS_SpdMagnets); //>>3 because of 8 kHz counter frequency, so 8 tics per ms
+    if(ui16_SPEED_counter<63000)KM.Tx.Wheeltime_ms = ((ui16_SPEED*KM.Settings.SPS_SpdMagnets)>>4); //>>4 because of 16 kHz counter frequency, so 16 tics per ms
     else KM.Tx.Wheeltime_ms = 64000;
 
 

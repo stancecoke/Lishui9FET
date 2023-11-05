@@ -348,14 +348,14 @@ int main(void)
 
 			  uint16_mapped_PAS = map(ui16_PAS, KM.Settings.Ramp_End, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
 			  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
-			  break;
+
 			}
 		  //check for Throttle override
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)ui16_setpoint_temp=(int32_t)uint16_mapped_PAS;
 		  else ui16_setpoint_temp=(int32_t)uint16_mapped_Throttle;
 		  //push assist with constant power
-		  if(ui8_Push_Assist_flag)ui16_setpoint_temp=300;
+		  if(ui8_Push_Assist_flag)ui16_setpoint_temp=150*KM.Settings.DoublePushAssist;
 		  // limit speed if legal Flag is set
 		  if(KM.Settings.LegalFlag){
 			if(ui16_PAS_counter<PAS_TIMEOUT){//ramp down setpoint at speed limit
@@ -714,7 +714,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 56000;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;

@@ -38,7 +38,7 @@ typedef struct
 {
     // Parameters received from display in setting mode:
     uint16_t WheelSize_mm;              // Unit: 1mm
-    uint8_t  DoubleGearRatio;         // KM_PASDIR_FORWARD / KM_PASDIR_BACKWARD
+    uint8_t  DoublePushAssist;         // KM_PASDIR_FORWARD / KM_PASDIR_BACKWARD
     uint8_t  PAS_SCN_Tolerance;         // Number of PAS signals to start the motor
     uint16_t  Ramp_End;               // Cadence for full current
     uint8_t  LegalFlag;           // KM_HND_HL_NO / KM_HND_HL_YES

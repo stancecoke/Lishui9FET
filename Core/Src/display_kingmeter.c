@@ -147,7 +147,7 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->RxCnt                           = 0;
 
     // Settings received from display:
-    KM_ctx->Settings.DoubleGearRatio      	= 0;
+    KM_ctx->Settings.DoublePushAssist      	= 0;
     KM_ctx->Settings.PAS_SCN_Tolerance      = (uint8_t) pas_tolerance;
     KM_ctx->Settings.Ramp_End            	= RAMP_END;
     KM_ctx->Settings.LegalFlag        		= 1;
@@ -308,14 +308,14 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     			            	if(!CheckSum) //low-byte and high-byte
     			            		{
     			            		kingmeter_update();
-    			                KM_ctx->Settings.DoubleGearRatio   = ((KM_Message[4]>>6)&1)+1; // ist eigentlich PAS direction
+    			                KM_ctx->Settings.DoublePushAssist   = ((KM_Message[4]>>6)&1)+1; // ist eigentlich PAS direction
     			               // KM_ctx->Settings.PAS_SCN_Tolerance   =  KM_Message[5];              //
     			                KM_ctx->Settings.Ramp_End    		  =  (KM_Message[4]&63)<<6;              // Bits 0-5 von Byte 4, einstellbare Werte 2 bis 63, skaliert auf gut 4000
     			                KM_ctx->Settings.LegalFlag     		  = (KM_Message[6]>>6)&1; // Ist eigentlich HND HL, Byte 6, Bit 6
     			                KM_ctx->Settings.SS_Ext_Int     	  = (KM_Message[6]>>7); // Speedsensor Extern=0/Intern=1, ist eigentlich HND HF, Byte 6, Bit 7
-    			                //KM_ctx->Settings.SYS_SSP_SlowStart   =  KM_Message[8];              // 1..9
+    			                KM_ctx->Settings.RideMode   			=  ((KM_Message[6]>>4))&3;              // 1..9
     			                KM_ctx->Settings.SPS_SpdMagnets      =  KM_Message[6]&7;             // //Bits 0 bis 2 von Byte 10
-    			                KM_ctx->Settings.VOL_1_UnderVolt_x10 = (((uint16_t) KM_Message[11])<<8) | KM_Message[11];
+    			                //KM_ctx->Settings.VOL_1_UnderVolt_x10 = (((uint16_t) KM_Message[11])<<8) | KM_Message[11];
     			                KM_ctx->Settings.WheelSize_mm        = WheelSize_LookUp[(KM_Message[10]&7)]; //Bits 0 bis 2 von Byte 10
     			    	        KM_ctx->Rx.SPEEDMAX_Limit          		= ((KM_Message[10]>>3)+10)*100;
     			    	        KM_ctx->Rx.CUR_Limit_mA                 = (KM_Message[8]&0x3F)*500;

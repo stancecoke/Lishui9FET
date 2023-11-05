@@ -129,8 +129,9 @@ uint16_t ui16_torque_cumulated = 0;
 char tx_buffer[100];
 
 int16_t battery_percent_fromcapacity = 50; 			//Calculation of used watthours not implemented yet
-
 int16_t power;
+
+enum {Powerlevels, NCTE, ERider, Spare};
 
 PI_control_t PI_battery_current;
 KINGMETER_t KM;
@@ -275,18 +276,24 @@ int main(void)
 		  ui16_SPEED=ui16_SPEED_counter;
 		  ui16_SPEED_counter=0;
 		  ui8_SPEED_flag=0;
-#if (SPEEDSOURCE==EXTERNAL)
+		  //calculate speed
 		  ui16_SPEEDx100_kph = external_tics_to_speedx100 (ui16_SPEED);
-#endif
 	  }
 
 	  if(ui8_PAS_flag&&ui16_PAS_counter>100){
 		  ui16_PAS=ui16_PAS_counter;
 		  ui16_PAS_counter=0;
 		  ui16_torque_cumulated -= ui16_torque_cumulated>>5;
-		  //Thun!!!
-		  if(adcData[2]<TORQUE_OFFSET)ui16_torque_cumulated += (TORQUE_OFFSET-adcData[2]);
+
+		  if(KM.Settings.RideMode==NCTE){
+			  if(adcData[2]<NCTE_OFFSET)ui16_torque_cumulated += (NCTE_OFFSET-adcData[2]);
+		  	  }
+		  if(KM.Settings.RideMode==ERider){
+			  if(adcData[2]>ERIDER_OFFSET)ui16_torque_cumulated += (adcData[2]-ERIDER_OFFSET);
+		  	  }
+
 		  ui8_PAS_flag=0;
+
 	  }
 
 	  if(ui8_adc_regular_flag){
@@ -317,13 +324,15 @@ int main(void)
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			  print_debug_info();
+			  //print_debug_info();
 			  slow_loop_counter=0;
 		  	  }
-		  //
-		  if(KM.Settings.SS_Ext_Int)ui16_SPEEDx100_kph = internal_tics_to_speedx100 (ui16_halltics);
-		  else ui16_SPEEDx100_kph = external_tics_to_speedx100 (ui16_SPEED);
-#if (TS_COEF) //torque-sensor mode
+		  // reset speed if, no speed pulse occurs
+		  if(ui16_SPEED_counter<12000){
+			  ui16_SPEEDx100_kph=0;
+			  ui16_SPEED=64000;
+		  }
+		  if(KM.Settings.RideMode==NCTE || KM.Settings.RideMode==ERider){
 			//calculate current target form torque, cadence and assist level
 		    uint16_mapped_PAS = (TS_COEF*(int16_t)(ui8_assist_level)* (ui16_torque_cumulated>>5)/ui16_PAS)>>8; //>>5 aus Mittelung Ã¼ber eine Kurbelumdrehung, >>8 aus KM5S-Protokoll Assistlevel 0..255
 
@@ -334,15 +343,19 @@ int main(void)
 				uint16_mapped_PAS=0;
 				if(ui16_torque_cumulated>0)ui16_torque_cumulated--; //ramp down cumulated torque value
 			}
-#else
-		  uint16_mapped_PAS = map(ui16_PAS, RAMP_END, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
-		  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
-#endif
+		  }
+			if(KM.Settings.RideMode == Powerlevels){
+
+			  uint16_mapped_PAS = map(ui16_PAS, KM.Settings.Ramp_End, PAS_TIMEOUT, ((ui16_battery_current_max_raw*(int32_t)(ui8_assist_level)))>>8, 0); // level in range 0...255
+			  if(ui16_PAS_counter>PAS_TIMEOUT)uint16_mapped_PAS=0;
+			  break;
+			}
 		  //check for Throttle override
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)ui16_setpoint_temp=(int32_t)uint16_mapped_PAS;
 		  else ui16_setpoint_temp=(int32_t)uint16_mapped_Throttle;
-
+		  //push assist with constant power
+		  if(ui8_Push_Assist_flag)ui16_setpoint_temp=300;
 		  // limit speed if legal Flag is set
 		  if(KM.Settings.LegalFlag){
 			if(ui16_PAS_counter<PAS_TIMEOUT){//ramp down setpoint at speed limit
@@ -353,6 +366,7 @@ int main(void)
 				}
 		  	  }
 		  else PI_battery_current.setpoint=ui16_setpoint_temp;
+
 
 		  // disable PWM if motor is at standstill and dutycycle is zero
 		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
@@ -925,7 +939,7 @@ uint32_t PI_control (PI_control_t* PI_c)
   return (PI_c->out>>PI_c->shift);
 }
 int16_t internal_tics_to_speedx100 (uint32_t tics){
-	return KM.Settings.WheelSize_mm*50*3600/(6*KM.Settings.Gear_Ratio*KM.Settings.DoubleGearRatio*tics);
+	return KM.Settings.WheelSize_mm*50*3600/(6*GEAR_RATIO*tics);
 }
 
 int16_t external_tics_to_speedx100 (uint32_t tics){
@@ -1206,15 +1220,8 @@ void kingmeter_update(void)
     }
 
 
-    if(KM.Settings.SS_Ext_Int)
-    	KM.Tx.Wheeltime_ms = (ui16_SPEED*KM.Settings.SPS_SpdMagnets); //>>3 because of 8 kHz counter frequency, so 8 tics per ms
-    else
-        if(__HAL_TIM_GET_COUNTER(&htim2) < 12000)
-        {
-    	KM.Tx.Wheeltime_ms = (ui16_halltics*KM.Settings.Gear_Ratio*KM.Settings.DoubleGearRatio*6)>>9; //>>9 because of 500kHZ timer2 frequency, 512 tics per ms should be OK *6 because of 6 hall interrupts per electric revolution.
-
-        }
-        else KM.Tx.Wheeltime_ms = 64000;
+    if(ui16_SPEED_counter<12000)KM.Tx.Wheeltime_ms = (ui16_SPEED*KM.Settings.SPS_SpdMagnets); //>>3 because of 8 kHz counter frequency, so 8 tics per ms
+    else KM.Tx.Wheeltime_ms = 64000;
 
 
     KM.Tx.Error = KM_ERROR_NONE;

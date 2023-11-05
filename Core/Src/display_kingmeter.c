@@ -149,13 +149,13 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     // Settings received from display:
     KM_ctx->Settings.DoubleGearRatio      	= 0;
     KM_ctx->Settings.PAS_SCN_Tolerance      = (uint8_t) pas_tolerance;
-    KM_ctx->Settings.Gear_Ratio            	= 255;
-    KM_ctx->Settings.LegalFlag        		= 0;
+    KM_ctx->Settings.Ramp_End            	= RAMP_END;
+    KM_ctx->Settings.LegalFlag        		= 1;
     KM_ctx->Settings.SS_Ext_Int        		= 0;
-    KM_ctx->Settings.SYS_SSP_SlowStart      = 1;
-    KM_ctx->Settings.SPS_SpdMagnets         = (uint8_t) wheel_magnets;
+    KM_ctx->Settings.RideMode      			= 1;
+    KM_ctx->Settings.SPS_SpdMagnets         = PULSES_PER_REVOLUTION;
     KM_ctx->Settings.VOL_1_UnderVolt_x10    = (uint16_t) (vcutoff * 10);
-    KM_ctx->Settings.WheelSize_mm           = (uint16_t) (WHEEL_CIRCUMFERENCE * 1000);
+    KM_ctx->Settings.WheelSize_mm           = WHEEL_CIRCUMFERENCE;
 
     // Parameters received from display in operation mode:
 
@@ -169,8 +169,8 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->Rx.Throttle                     = KM_THROTTLE_ON;
     KM_ctx->Rx.CruiseControl                = KM_CRUISE_OFF;
     KM_ctx->Rx.OverSpeed                    = KM_OVERSPEED_NO;
-    KM_ctx->Rx.SPEEDMAX_Limit           = (uint16_t) (spd_max1 * 10);
-    KM_ctx->Rx.CUR_Limit_mA                = BATTERY_CURRENT_MAX;
+    KM_ctx->Rx.SPEEDMAX_Limit           	= SPEEDLIMIT*100;
+    KM_ctx->Rx.CUR_Limit_mA                	= BATTERY_CURRENT_MAX;
 
     // Parameters to be send to display in operation mode:
     KM_ctx->Tx.Battery                      = KM_BATTERY_NORMAL;
@@ -310,7 +310,7 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     			            		kingmeter_update();
     			                KM_ctx->Settings.DoubleGearRatio   = ((KM_Message[4]>>6)&1)+1; // ist eigentlich PAS direction
     			               // KM_ctx->Settings.PAS_SCN_Tolerance   =  KM_Message[5];              //
-    			                KM_ctx->Settings.Gear_Ratio    		  =  KM_Message[4]&63;              // Bits 0-5 von Byte 4, ist eigentlich PAS Empfindlichkeit SCN
+    			                KM_ctx->Settings.Ramp_End    		  =  (KM_Message[4]&63)<<6;              // Bits 0-5 von Byte 4, einstellbare Werte 2 bis 63, skaliert auf gut 4000
     			                KM_ctx->Settings.LegalFlag     		  = (KM_Message[6]>>6)&1; // Ist eigentlich HND HL, Byte 6, Bit 6
     			                KM_ctx->Settings.SS_Ext_Int     	  = (KM_Message[6]>>7); // Speedsensor Extern=0/Intern=1, ist eigentlich HND HF, Byte 6, Bit 7
     			                //KM_ctx->Settings.SYS_SSP_SlowStart   =  KM_Message[8];              // 1..9

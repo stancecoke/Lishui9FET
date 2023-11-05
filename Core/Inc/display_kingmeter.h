@@ -40,10 +40,10 @@ typedef struct
     uint16_t WheelSize_mm;              // Unit: 1mm
     uint8_t  DoubleGearRatio;         // KM_PASDIR_FORWARD / KM_PASDIR_BACKWARD
     uint8_t  PAS_SCN_Tolerance;         // Number of PAS signals to start the motor
-    uint8_t  Gear_Ratio;               // Gear Ratio of Motor
+    uint16_t  Ramp_End;               // Cadence for full current
     uint8_t  LegalFlag;           // KM_HND_HL_NO / KM_HND_HL_YES
     uint8_t  SS_Ext_Int;           // KM_HND_HF_NO / KM_HND_HF_YES
-    uint8_t  SYS_SSP_SlowStart;         // 1..4 Level of soft ramping at start
+    uint8_t  RideMode;         // 1..4 Level of soft ramping at start
     uint8_t  SPS_SpdMagnets;            // Number of magnets of speedsensor
     uint16_t VOL_1_UnderVolt_x10;       // Unit: 0.1V
 

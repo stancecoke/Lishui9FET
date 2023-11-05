@@ -8,8 +8,6 @@
 #ifndef INC_CONFIG_H_
 #define INC_CONFIG_H_
 
-#define EXTERNAL 1
-#define INTERNAL 0
 #define CAL_I 38
 
 #define P_FACTOR 200
@@ -22,10 +20,10 @@
 #define WHEEL_CIRCUMFERENCE 2200
 #define GEAR_RATIO 76
 #define PULSES_PER_REVOLUTION 1
-#define SPEEDSOURCE INTERNAL
-
+#define SPEEDLIMIT 25
 #define PAS_TIMEOUT 8000 // half a second
 #define RAMP_END 3000
 #define TS_COEF 6000
-#define TORQUE_OFFSET 1960
+#define NCTE_OFFSET 1960
+#define ERIDER_OFFSET 1500
 #endif /* INC_CONFIG_H_ */

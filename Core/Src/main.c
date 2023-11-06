@@ -108,7 +108,7 @@ uint8_t ui8_PAS_flag=0;
 uint8_t ui8_UART_flag=0;
 uint16_t ui16_PAS_counter=PAS_TIMEOUT+1;
 uint16_t ui16_PAS=64000;
-uint16_t ui16_setpoint_temp=64000;
+uint16_t ui16_setpoint_temp=0;
 uint8_t ui8_SPEED_flag=0;
 uint8_t ui8_Push_Assist_flag=0;
 uint8_t ui8_assist_level=127;
@@ -185,7 +185,7 @@ int main(void)
   PI_battery_current.setpoint = 0;
   PI_battery_current.limit_output =PERIOD;
   PI_battery_current.max_step=250;
-  PI_battery_current.shift=12;
+  PI_battery_current.shift=8;
   PI_battery_current.limit_i=PERIOD;
 
   ui16_battery_current_max_raw = BATTERY_CURRENT_MAX/ui8_cal_battery_current;
@@ -260,7 +260,7 @@ int main(void)
 
 	  	ui8_adc_regular_flag=0;
 	  }
-  ui16_battery_current_offset=ui16_battery_current_offset>>5;
+  ui16_battery_current_offset=(ui16_battery_current_offset>>5)+2;
   i16_battery_current_cumulated=ui16_battery_current_offset<<4;
   /* USER CODE END 2 */
 
@@ -298,15 +298,17 @@ int main(void)
 
 	  if(ui8_adc_regular_flag){
 		  ui16_throttle_cumulated-=ui16_throttle_cumulated>>4;
-		  ui16_throttle_cumulated+=adcData[4];
+		  if(adcData[4]>ui16_throttle_offset) ui16_throttle_cumulated+=adcData[4];
 		  ui16_throttle = ui16_throttle_cumulated>>4;
 
-		  i16_battery_current_cumulated-=i16_battery_current_cumulated>>4;
+		  i16_battery_current_cumulated-=i16_battery_current_cumulated>>2;
 		  i16_battery_current_cumulated+=adcData[8];
-		  i16_battery_current_raw=((i16_battery_current_cumulated>>4)-ui16_battery_current_offset);
+		  i16_battery_current_raw=((i16_battery_current_cumulated>>2)-ui16_battery_current_offset);
 		  i16_battery_current=i16_battery_current_raw*ui8_cal_battery_current;
 
 		  PI_battery_current.recent_value=i16_battery_current_raw;
+		  if(ui16_halltics>10000) PI_battery_current.max_step=25;
+		  else  PI_battery_current.max_step=250;
 
 		  ui16_dutycycle = PI_control(&PI_battery_current);
 		  // Motorcurrent = Battery current / DutyCycle
@@ -353,7 +355,7 @@ int main(void)
 		  //check for Throttle override
 		  uint16_mapped_Throttle = map(ui16_throttle, ui16_throttle_offset , THROTTLE_MAX, 0, ui16_battery_current_max_raw);
 		  if(uint16_mapped_PAS>uint16_mapped_Throttle)ui16_setpoint_temp=(int32_t)uint16_mapped_PAS;
-		  else ui16_setpoint_temp=(int32_t)uint16_mapped_Throttle;
+		  else ui16_setpoint_temp=uint16_mapped_Throttle;
 		  //push assist with constant power
 		  if(ui8_Push_Assist_flag)ui16_setpoint_temp=150*KM.Settings.DoublePushAssist;
 		  // limit speed if legal Flag is set
@@ -369,7 +371,7 @@ int main(void)
 
 
 		  // disable PWM if motor is at standstill and dutycycle is zero
-		  if(ui16_halltics>5000&&!ui16_dutycycle)LL_TIM_DisableAllOutputs(TIM1);
+		  if(ui16_halltics>5000&&!PI_battery_current.setpoint)LL_TIM_DisableAllOutputs(TIM1);
 		  // enable PWM if motor is at standstill and power is wanted
 		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
 			  LL_TIM_EnableAllOutputs(TIM1);
@@ -1193,12 +1195,12 @@ case 6:
 
 void print_debug_info(void){
 		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d, %d\r\n ",
-				ui16_PAS,
-				ui16_SPEED,
-				i32_motor_current_raw*ui8_cal_battery_current,
 				ui16_dutycycle,
-				i16_battery_current,
-				PI_battery_current.setpoint*ui8_cal_battery_current,
+				PI_battery_current.max_step,
+				ui16_halltics,
+				uint16_mapped_Throttle,
+				PI_battery_current.setpoint,
+				i16_battery_current_raw,
 				ui16_SPEEDx100_kph);
 		i=0;
 		while (tx_buffer[i] != '\0'){i++;}

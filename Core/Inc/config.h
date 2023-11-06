@@ -22,7 +22,7 @@
 #define PULSES_PER_REVOLUTION 1
 #define SPEEDLIMIT 25
 #define PAS_TIMEOUT 8000 // half a second
-#define RAMP_END 3000
+#define RAMP_END 1000
 #define TS_COEF 6000
 #define NCTE_OFFSET 1960
 #define ERIDER_OFFSET 1500

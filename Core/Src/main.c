@@ -88,7 +88,7 @@ void print_debug_info(void);
 volatile uint16_t adcData[10]; //Buffer for ADC1 Input
 uint8_t ui8_adc_regular_flag =0;
 uint8_t ui8_direction_flag =0;
-uint16_t ui16_halltics =5000;
+uint16_t ui16_halltics =64000;
 uint16_t ui16_timing_counter =0;
 static uint16_t ui16_battery_current_offset =0;
 int16_t i16_battery_current =0;
@@ -123,13 +123,16 @@ uint8_t hall_sequence[2][7]={
 		{0,4,6,5,2,3,1}};
 
 
-uint16_t ui16_dutycycle = 0;
+uint16_t ui16_dutycycle = 100;
 uint16_t ui16_throttle_cumulated = 0;
 uint16_t ui16_torque_cumulated = 0;
 char tx_buffer[100];
 
 int16_t battery_percent_fromcapacity = 50; 			//Calculation of used watthours not implemented yet
 int16_t power;
+int32_t temp1;
+int32_t temp2;
+int32_t temp3;
 
 enum {Powerlevels, NCTE, ERider, Spare};
 
@@ -185,7 +188,7 @@ int main(void)
   PI_battery_current.setpoint = 0;
   PI_battery_current.limit_output =PERIOD;
   PI_battery_current.max_step=250;
-  PI_battery_current.shift=8;
+  PI_battery_current.shift=9;
   PI_battery_current.limit_i=PERIOD;
 
   ui16_battery_current_max_raw = BATTERY_CURRENT_MAX/ui8_cal_battery_current;
@@ -245,9 +248,9 @@ int main(void)
   }
 
 
-  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
-  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
-  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
+  LL_TIM_OC_SetCompareCH1(TIM1, 0);
+  LL_TIM_OC_SetCompareCH2(TIM1, 0);
+  LL_TIM_OC_SetCompareCH3(TIM1, 0);
 
   //HAL_Delay(1000); //wait for stable conditions
 
@@ -260,8 +263,9 @@ int main(void)
 
 	  	ui8_adc_regular_flag=0;
 	  }
-  ui16_battery_current_offset=(ui16_battery_current_offset>>5)+2;
+  ui16_battery_current_offset=(ui16_battery_current_offset>>5);
   i16_battery_current_cumulated=ui16_battery_current_offset<<4;
+  LL_TIM_DisableAllOutputs(TIM1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -307,14 +311,14 @@ int main(void)
 		  i16_battery_current=i16_battery_current_raw*ui8_cal_battery_current;
 
 		  PI_battery_current.recent_value=i16_battery_current_raw;
-		  if(ui16_halltics>10000) PI_battery_current.max_step=25;
-		  else  PI_battery_current.max_step=250;
-
-		  ui16_dutycycle = PI_control(&PI_battery_current);
+		  if(ui16_halltics>5000) PI_battery_current.max_step=15;
+		  else  PI_battery_current.max_step=150;
+		  if(LL_TIM_IsEnabledAllOutputs(TIM1)) ui16_dutycycle = PI_control(&PI_battery_current);
+		  //ui16_dutycycle = PI_control(&PI_battery_current);
 		  // Motorcurrent = Battery current / DutyCycle
 		  i32_motor_current_raw =i16_battery_current_raw*PERIOD/ui16_dutycycle;
 		  // limit Motorcurrent
-		  ui16_dutycycle = map(i32_motor_current_raw, 1200, 1350, ui16_dutycycle,0);
+		  ui16_dutycycle = map(i32_motor_current_raw, 1200, 1350, ui16_dutycycle,100);
 		  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
 		  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
 		  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
@@ -326,7 +330,7 @@ int main(void)
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
 
-			  //print_debug_info();
+			 // print_debug_info();
 			  slow_loop_counter=0;
 		  	  }
 		  // reset speed if, no speed pulse occurs
@@ -371,11 +375,11 @@ int main(void)
 
 
 		  // disable PWM if motor is at standstill and dutycycle is zero
-		  if(ui16_halltics>5000&&!PI_battery_current.setpoint)LL_TIM_DisableAllOutputs(TIM1);
+		  if(ui16_halltics>5000&&!PI_battery_current.setpoint) LL_TIM_DisableAllOutputs(TIM1);
+
 		  // enable PWM if motor is at standstill and power is wanted
-		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&ui16_dutycycle){
-			  LL_TIM_EnableAllOutputs(TIM1);
-		  	  }
+		  else if (!LL_TIM_IsEnabledAllOutputs(TIM1)&&PI_battery_current.setpoint) LL_TIM_EnableAllOutputs(TIM1);
+
 
 
 		   ui16_timing_counter=0;
@@ -919,13 +923,16 @@ void Get_Direction(void){
 uint32_t PI_control (PI_control_t* PI_c)
 {
 
-	int16_t p_part; //proportional part
+	int32_t p_part; //proportional part
 	p_part = ((PI_c->setpoint - PI_c->recent_value)*PI_c->gain_p);
-  PI_c->integral_part += ((PI_c->setpoint - PI_c->recent_value)*PI_c->gain_i);
+	if (((PI_c->setpoint - PI_c->recent_value)*PI_c->gain_i)>PI_c->max_step)PI_c->integral_part+=PI_c->max_step;
+
+	else 	PI_c->integral_part += ((PI_c->setpoint - PI_c->recent_value)*PI_c->gain_i);
 
 
   if (PI_c->integral_part > PI_c->limit_i << PI_c->shift) PI_c->integral_part = PI_c->limit_i << PI_c->shift;
   if (PI_c->integral_part < 0) PI_c->integral_part = 0;
+
   if(!LL_TIM_IsEnabledAllOutputs(TIM1)&&!PI_c->setpoint)PI_c->integral_part = 0 ; //reset integral part if PWM is disabled
 
     //avoid too big steps in one loop run
@@ -937,8 +944,9 @@ uint32_t PI_control (PI_control_t* PI_c)
   if (PI_c->out>PI_c->limit_output << PI_c->shift) PI_c->out = PI_c->limit_output<< PI_c->shift;
   if (PI_c->out<0) PI_c->out=0; // allow no negative voltage.
  // if(!LL_TIM_IsEnabledAllOutputs(TIM1)&&!PI_c->setpoint)PI_c->out = 0 ; //reset output if PWM is disabled
-
-  return (PI_c->out>>PI_c->shift);
+  int32_t out_temp =PI_c->out>>PI_c->shift;//avoid jerk at startup
+  if(out_temp<100)out_temp=100;
+  return (out_temp);
 }
 int16_t internal_tics_to_speedx100 (uint32_t tics){
 	return KM.Settings.WheelSize_mm*50*3600/(6*GEAR_RATIO*tics);
@@ -1195,13 +1203,13 @@ case 6:
 
 void print_debug_info(void){
 		sprintf_(tx_buffer,"%d, %d, %d, %d, %d, %d, %d\r\n ",
+				PI_battery_current.integral_part>>PI_battery_current.shift,
 				ui16_dutycycle,
-				PI_battery_current.max_step,
-				ui16_halltics,
-				uint16_mapped_Throttle,
 				PI_battery_current.setpoint,
 				i16_battery_current_raw,
-				ui16_SPEEDx100_kph);
+				ui16_SPEEDx100_kph,
+				ui16_halltics,
+				PI_battery_current.max_step);
 		i=0;
 		while (tx_buffer[i] != '\0'){i++;}
 

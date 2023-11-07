@@ -318,7 +318,7 @@ int main(void)
 		  // Motorcurrent = Battery current / DutyCycle
 		  i32_motor_current_raw =i16_battery_current_raw*PERIOD/ui16_dutycycle;
 		  // limit Motorcurrent
-		  ui16_dutycycle = map(i32_motor_current_raw, 1200, 1350, ui16_dutycycle,100);
+		  ui16_dutycycle = map(i32_motor_current_raw, 1200, 1350, ui16_dutycycle,1);
 		  LL_TIM_OC_SetCompareCH1(TIM1, ui16_dutycycle);
 		  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
 		  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
@@ -945,7 +945,7 @@ uint32_t PI_control (PI_control_t* PI_c)
   if (PI_c->out<0) PI_c->out=0; // allow no negative voltage.
  // if(!LL_TIM_IsEnabledAllOutputs(TIM1)&&!PI_c->setpoint)PI_c->out = 0 ; //reset output if PWM is disabled
   int32_t out_temp =PI_c->out>>PI_c->shift;//avoid jerk at startup
-  if(out_temp<100)out_temp=100;
+  if(out_temp<1)out_temp=1;
   return (out_temp);
 }
 int16_t internal_tics_to_speedx100 (uint32_t tics){

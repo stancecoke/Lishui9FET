@@ -247,10 +247,10 @@ int main(void)
     Error_Handler();
   }
 
-
-  LL_TIM_OC_SetCompareCH1(TIM1, 0);
-  LL_TIM_OC_SetCompareCH2(TIM1, 0);
-  LL_TIM_OC_SetCompareCH3(TIM1, 0);
+  LL_TIM_DisableAllOutputs(TIM1);
+  LL_TIM_OC_SetCompareCH1(TIM1, 1);
+  LL_TIM_OC_SetCompareCH2(TIM1, 1);
+  LL_TIM_OC_SetCompareCH3(TIM1, 1);
 
   //HAL_Delay(1000); //wait for stable conditions
 
@@ -265,7 +265,7 @@ int main(void)
 	  }
   ui16_battery_current_offset=(ui16_battery_current_offset>>5);
   i16_battery_current_cumulated=ui16_battery_current_offset<<4;
-  LL_TIM_DisableAllOutputs(TIM1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -328,8 +328,8 @@ int main(void)
 	  if(ui16_timing_counter>16){ //run control @1kHz
 		  slow_loop_counter++;
 		  if(slow_loop_counter>20){//debug printout @50Hz
-			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
-
+			  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+			  HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
 			 // print_debug_info();
 			  slow_loop_counter=0;
 		  	  }
@@ -338,6 +338,10 @@ int main(void)
 			  ui16_SPEEDx100_kph=0;
 			  ui16_SPEED=64000;
 		  }
+		  //check break lever switch
+		  if(!HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin))ui16_setpoint_temp=0;
+		  //calculate wanted battery current from sensor data
+		  else{
 		  if(KM.Settings.RideMode==NCTE || KM.Settings.RideMode==ERider){
 			//calculate current target form torque, cadence and assist level
 		    uint16_mapped_PAS = (TS_COEF*(int16_t)(ui8_assist_level)* (ui16_torque_cumulated>>5)/ui16_PAS)>>8; //>>5 aus Mittelung Ã¼ber eine Kurbelumdrehung, >>8 aus KM5S-Protokoll Assistlevel 0..255
@@ -362,6 +366,8 @@ int main(void)
 		  else ui16_setpoint_temp=uint16_mapped_Throttle;
 		  //push assist with constant power
 		  if(ui8_Push_Assist_flag)ui16_setpoint_temp=150*KM.Settings.DoublePushAssist;
+		  }//end else break
+
 		  // limit speed if legal Flag is set
 		  if(KM.Settings.LegalFlag){
 			if(ui16_PAS_counter<PAS_TIMEOUT){//ramp down setpoint at speed limit
@@ -787,6 +793,13 @@ static void MX_GPIO_Init(void)
 	  GPIO_InitStruct.Pull = GPIO_NOPULL;
 	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+
+	  /*Configure GPIO pin : Light_Pin */
+	  GPIO_InitStruct.Pin = Light_Pin;
+	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	  GPIO_InitStruct.Pull = GPIO_NOPULL;
+	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	  HAL_GPIO_Init(Light_GPIO_Port, &GPIO_InitStruct);
 
 	  /*Configure GPIO pins : TA_PAS_Pin SS_Speed_Pin */
 	  GPIO_InitStruct.Pin = TA_PAS_Pin|SS_Speed_Pin;

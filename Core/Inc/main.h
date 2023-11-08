@@ -75,6 +75,8 @@ void kingmeter_update(void);
 #define SC_Hall_3_GPIO_Port GPIOB
 #define LED_Pin GPIO_PIN_12
 #define LED_GPIO_Port GPIOA
+#define Light_Pin GPIO_PIN_8
+#define Light_GPIO_Port GPIOB
 #define SA_Hall_1_Pin GPIO_PIN_15
 #define SA_Hall_1_GPIO_Port GPIOA
 #define SB_Hall_2_Pin GPIO_PIN_3

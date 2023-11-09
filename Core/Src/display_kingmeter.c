@@ -242,15 +242,18 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
 
 
 
+    			CheckSum = 0x0000;
+    			if(KM_Message[3]<20){ //catch error on assist level 5
 
-
-            	CheckSum = 0x0000;
             	for(m=1; m<(4+KM_Message[3]); m++)
             		{
             		CheckSum = CheckSum + KM_Message[m];            // Calculate CheckSum
             		}
            		CheckSum-=(KM_Message[m]+((KM_Message[m+1])<<8));
-
+    			}
+    			else {
+    				vcutoff=1;
+    			}
      			switch(KM_Message[2])
     			        {
     			            case 0x52:      // Operation mode

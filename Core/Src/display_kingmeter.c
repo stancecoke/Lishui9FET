@@ -36,6 +36,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 UART_HandleTypeDef huart1;
 
 
+
+
 // Hashtable used for handshaking in 901U protocol
 
  const uint8_t KM_901U_HANDSHAKE[64] =
@@ -107,7 +109,7 @@ UART_HandleTypeDef huart1;
  };
 
  const uint16_t WheelSize_LookUp[8]= {1277,1436,1596,1756,1915,2075,2154,2234};
-
+ const uint8_t powertable[6] = {0,34,51,77,115,255};
 
 
 static void KM_901U_Service(KINGMETER_t* KM_ctx);
@@ -151,7 +153,7 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->Settings.PAS_SCN_Tolerance      = (uint8_t) pas_tolerance;
     KM_ctx->Settings.Ramp_End            	= RAMP_END;
     KM_ctx->Settings.LegalFlag        		= 0;
-    KM_ctx->Settings.SS_Ext_Int        		= 0;
+    KM_ctx->Settings.Level_Behavior        	= 0;
     KM_ctx->Settings.RideMode      			= 1;
     KM_ctx->Settings.SPS_SpdMagnets         = PULSES_PER_REVOLUTION;
     KM_ctx->Settings.VOL_1_UnderVolt_x10    = (uint16_t) (vcutoff * 10);
@@ -242,9 +244,9 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
 
 
 
-    			CheckSum = 0x0000;
-    			if(KM_Message[3]<20){ //catch error on assist level 5
 
+    			if(KM_Message[3]<20){ //catch error on assist level 5
+    				CheckSum = 0x0000;
             	for(m=1; m<(4+KM_Message[3]); m++)
             		{
             		CheckSum = CheckSum + KM_Message[m];            // Calculate CheckSum
@@ -252,7 +254,7 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
            		CheckSum-=(KM_Message[m]+((KM_Message[m+1])<<8));
     			}
     			else {
-    				vcutoff=1;
+    				CheckSum=1;
     			}
      			switch(KM_Message[2])
     			        {
@@ -262,8 +264,9 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
 
     			            		//HAL_UART_Transmit(&huart3, (uint8_t *)&KM_Message, Rx_message_length,50);
     			                // Decode Rx message
+    			            		if(KM_ctx->Settings.Level_Behavior) KM_ctx->Rx.AssistLevel = powertable[(KM_Message[4]/50)];
+    			            		else KM_ctx->Rx.AssistLevel        =  KM_Message[4];                 // 0..255
 
-    			                KM_ctx->Rx.AssistLevel        =  KM_Message[4];                 // 0..255
     			                KM_ctx->Rx.Headlight          = (KM_Message[5] & 0xC0) >> 6;    // KM_HEADLIGHT_OFF / KM_HEADLIGHT_ON / KM_HEADLIGHT_LOW / KM_HEADLIGHT_HIGH
     			                KM_ctx->Rx.Battery            = (KM_Message[5] & 0x20) >> 5;    // KM_BATTERY_NORMAL / KM_BATTERY_LOW
     			                KM_ctx->Rx.PushAssist         = (KM_Message[5] & 0x10) >> 4;    // KM_PUSHASSIST_OFF / KM_PUSHASSIST_ON
@@ -315,7 +318,7 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     			               // KM_ctx->Settings.PAS_SCN_Tolerance   =  KM_Message[5];              //
     			                KM_ctx->Settings.Ramp_End    		  =  (KM_Message[4]&63)<<6;              // Bits 0-5 von Byte 4, einstellbare Werte 2 bis 63, skaliert auf gut 4000
     			                KM_ctx->Settings.LegalFlag     		  = (KM_Message[6]>>6)&1; // Ist eigentlich HND HL, Byte 6, Bit 6
-    			                KM_ctx->Settings.SS_Ext_Int     	  = (KM_Message[6]>>7); // Speedsensor Extern=0/Intern=1, ist eigentlich HND HF, Byte 6, Bit 7
+    			                KM_ctx->Settings.Level_Behavior     	  = (KM_Message[6]>>7); // 0=direct,1=lookup table, ist eigentlich HND HF, Byte 6, Bit 7
     			                KM_ctx->Settings.RideMode   			=  ((KM_Message[6]>>4))&3;              // 1..9
     			                KM_ctx->Settings.SPS_SpdMagnets      =  KM_Message[6]&7;             // //Bits 0 bis 2 von Byte 10
     			                //KM_ctx->Settings.VOL_1_UnderVolt_x10 = (((uint16_t) KM_Message[11])<<8) | KM_Message[11];

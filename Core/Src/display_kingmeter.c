@@ -152,9 +152,9 @@ void KingMeter_Init (KINGMETER_t* KM_ctx)
     KM_ctx->Settings.DoublePushAssist      	= 0;
     KM_ctx->Settings.PAS_SCN_Tolerance      = (uint8_t) pas_tolerance;
     KM_ctx->Settings.Ramp_End            	= RAMP_END;
-    KM_ctx->Settings.LegalFlag        		= 0;
+    KM_ctx->Settings.LegalFlag        		= 1;
     KM_ctx->Settings.Level_Behavior        	= 0;
-    KM_ctx->Settings.RideMode      			= 1;
+    KM_ctx->Settings.RideMode      			= 0;
     KM_ctx->Settings.SPS_SpdMagnets         = PULSES_PER_REVOLUTION;
     KM_ctx->Settings.VOL_1_UnderVolt_x10    = (uint16_t) (vcutoff * 10);
     KM_ctx->Settings.WheelSize_mm           = WHEEL_CIRCUMFERENCE;

@@ -123,7 +123,7 @@ uint8_t hall_sequence[2][7]={
 		{0,4,6,5,2,3,1}};
 
 
-uint16_t ui16_dutycycle = 100;
+uint16_t ui16_dutycycle = 1;
 uint16_t ui16_throttle_cumulated = 0;
 uint16_t ui16_torque_cumulated = 0;
 char tx_buffer[100];
@@ -255,16 +255,19 @@ int main(void)
   //HAL_Delay(1000); //wait for stable conditions
 
 
-  ui16_battery_current_offset=0;
-  for(i=0;i<36;i++){
-	  	while(!ui8_adc_regular_flag){}
-	  	if(i>3)	ui16_battery_current_offset+=adcData[8];
-	  	printf_("%d, \r\n ",  adcData[8]);
 
+
+  while(adcData[8]!=ui16_battery_current_offset){
+	ui16_battery_current_offset=0;
+	for(i=0;i<56;i++){
+	  	while(!ui8_adc_regular_flag){}
+	  	if(i>23)	ui16_battery_current_offset+=adcData[8];
+	  //printf_("%d, \r\n ",  adcData[8]);
 	  	ui8_adc_regular_flag=0;
 	  }
-  ui16_battery_current_offset=(ui16_battery_current_offset>>5);
-  i16_battery_current_cumulated=ui16_battery_current_offset<<4;
+	ui16_battery_current_offset=(ui16_battery_current_offset>>5);
+  }
+  i16_battery_current_cumulated=ui16_battery_current_offset<<2;
 
   /* USER CODE END 2 */
 
@@ -311,8 +314,8 @@ int main(void)
 		  i16_battery_current=i16_battery_current_raw*ui8_cal_battery_current;
 
 		  PI_battery_current.recent_value=i16_battery_current_raw;
-		  if(ui16_halltics>5000) PI_battery_current.max_step=15;
-		  else  PI_battery_current.max_step=150;
+		  if(ui16_halltics>5000) PI_battery_current.max_step=50;
+		  else  PI_battery_current.max_step=500;
 		  if(LL_TIM_IsEnabledAllOutputs(TIM1)) ui16_dutycycle = PI_control(&PI_battery_current);
 		  //ui16_dutycycle = PI_control(&PI_battery_current);
 		  // Motorcurrent = Battery current / DutyCycle
@@ -323,14 +326,17 @@ int main(void)
 		  LL_TIM_OC_SetCompareCH2(TIM1, ui16_dutycycle);
 		  LL_TIM_OC_SetCompareCH3(TIM1, ui16_dutycycle);
 		  ui8_adc_regular_flag=0;
+
 	  	  }
 
 	  if(ui16_timing_counter>16){ //run control @1kHz
 		  slow_loop_counter++;
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-			  HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
-			 // print_debug_info();
+			 // HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
+#ifdef DEBUG
+			  print_debug_info();
+#endif
 			  slow_loop_counter=0;
 		  	  }
 		  // reset speed if, no speed pulse occurs
@@ -472,7 +478,7 @@ static void MX_ADC_Init(void)
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = ENABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -726,7 +732,11 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
+#ifdef DEBUG
+  huart1.Init.BaudRate = 56000;
+#else
   huart1.Init.BaudRate = 9600;
+#endif
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -819,6 +829,7 @@ static void MX_GPIO_Init(void)
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	ui8_adc_regular_flag=1;
+	HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -886,6 +897,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim==&htim1&&ui16_timing_counter<64000)ui16_timing_counter++;
 	if(htim==&htim1&&ui16_SPEED_counter<64000)ui16_SPEED_counter++;
 	if(htim==&htim1&&ui16_PAS_counter<64000)ui16_PAS_counter++;
+	HAL_ADC_Start(&hadc);
 }
 
 void Get_Direction(void){
@@ -1220,9 +1232,9 @@ void print_debug_info(void){
 				ui16_dutycycle,
 				PI_battery_current.setpoint,
 				i16_battery_current_raw,
-				ui16_SPEEDx100_kph,
-				ui16_halltics,
-				PI_battery_current.max_step);
+				ui16_battery_current_offset,
+				adcData[6],
+				ui16_halltics);
 		i=0;
 		while (tx_buffer[i] != '\0'){i++;}
 

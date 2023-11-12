@@ -255,7 +255,7 @@ int main(void)
   //HAL_Delay(1000); //wait for stable conditions
 
 
-
+  while(!adcData[8]){}
 
   while(adcData[8]!=ui16_battery_current_offset){
 	ui16_battery_current_offset=0;
@@ -480,8 +480,8 @@ static void MX_ADC_Init(void)
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
   hadc.Init.ContinuousConvMode = DISABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
-  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T1_TRGO;//ADC_SOFTWARE_START;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc.Init.DMAContinuousRequests = ENABLE;
   hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   if (HAL_ADC_Init(&hadc) != HAL_OK)
@@ -613,7 +613,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;//TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
@@ -829,7 +829,7 @@ static void MX_GPIO_Init(void)
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	ui8_adc_regular_flag=1;
-	HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
+	//HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -897,7 +897,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim==&htim1&&ui16_timing_counter<64000)ui16_timing_counter++;
 	if(htim==&htim1&&ui16_SPEED_counter<64000)ui16_SPEED_counter++;
 	if(htim==&htim1&&ui16_PAS_counter<64000)ui16_PAS_counter++;
-	HAL_ADC_Start(&hadc);
+	//HAL_ADC_Start(&hadc);
 }
 
 void Get_Direction(void){
@@ -1233,7 +1233,7 @@ void print_debug_info(void){
 				PI_battery_current.setpoint,
 				i16_battery_current_raw,
 				ui16_battery_current_offset,
-				adcData[6],
+				LL_TIM_IsEnabledAllOutputs(TIM1),
 				ui16_halltics);
 		i=0;
 		while (tx_buffer[i] != '\0'){i++;}

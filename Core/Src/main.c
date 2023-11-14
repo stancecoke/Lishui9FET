@@ -67,14 +67,15 @@ DMA_HandleTypeDef hdma_usart1_tx;
 //    return ch;
 //  }
 
-#define ST_BOOTLOADER_STARTADRESSE 0x1FFFC800 //0x1FFFEC00
+#define ST_BOOTLOADER_STARTADRESSE 0x1FFFEC00// 0x1FFFC800 //0x1FFFEC00 0x1fffedbc
 void TimerCommutationEvent_Callback(void);
 void Get_Direction(void);
 uint32_t PI_control (PI_control_t* PI_c);
 int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max);
 int16_t internal_tics_to_speedx100 (uint32_t tics);
 int16_t external_tics_to_speedx100 (uint32_t tics);
-void __attribute__ ((noreturn))BootLoaderUniversalAnsprungFunktion(void);
+void JumpToBootloader (void);
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -153,11 +154,13 @@ KINGMETER_t KM;
   * @brief  The application entry point.
   * @retval int
   */
+
+
 int main(void)
 {
   /* USER CODE BEGIN 1 */
     // LED ON
-
+	//JumpToBootloader ();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -336,8 +339,9 @@ int main(void)
 		  slow_loop_counter++;
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-			 if(!HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin))BootLoaderUniversalAnsprungFunktion();
-#ifdef DEBUG
+			 if(!HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin))JumpToBootloader();
+
+			 #ifdef DEBUG
 			  print_debug_info();
 #endif
 			  slow_loop_counter=0;
@@ -1304,57 +1308,49 @@ void kingmeter_update(void)
 }
 
 
-void __attribute__ ((noreturn))BootLoaderUniversalAnsprungFunktion(void) // ™pegel
+void JumpToBootloader (void)
 {
-//	  void (*JumpAddress)(void);
-//	  // Startadresse der Applikation bzw des Bootloaders: dort beginnt die Vektortabelle
-//	  volatile uint32_t addr;
-//	  addr = ST_BOOTLOADER_STARTADRESSE;
+uint32_t i=0;
+void (*SysMemBootJump)(void);
 
 
-//	  JumpAddress = (void (*)(void)) (*((uint32_t *)(addr + 4)));
-//	    /**
-//	     * Set main stack pointer.
-//	     * This step must be done last otherwise local variables in this function
-//	     * don't have proper value since stack pointer is located on different position
-//	     *
-//	     * Set direct address location which specifies stack pointer in SRAM location
-//	     */
-//	    __set_MSP(*(uint32_t *)addr);
-//	    __DSB();
-//	    /**
-//	     * Call our function to jump to set location
-//	     * This will start system memory execution
-//	     */
-//	    JumpAddress();
-//	    // sollte hier nie ankommen
-//	    while(1) HAL_NVIC_SystemReset();
-	HAL_UART_DeInit(&huart1);
+	/* Disable all interrupts */
+	__disable_irq();
 
-	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //Takt aktivieren
-	SYSCFG->CFGR1 &= ~SYSCFG_CFGR1_MEM_MODE_1; //Bit löschen
-	SYSCFG->CFGR1 |= SYSCFG_CFGR1_MEM_MODE_0; //System Memory auf Adresse 0 remappen
-	  //SysTick zurücksetzen, wird im Bootloader benötigt
-	  SysTick->CTRL = 0;
-	  SysTick->LOAD = 0;
-	  SysTick->VAL = 0;
-//
-//		  /* Enable the SYSCFG peripheral clock*/
-//		  __HAL_RCC_SYSCFG_CLK_ENABLE();
-//		  /* Remap SRAM at 0x00000000 */
-//		  __HAL_SYSCFG_REMAPMEMORY_SRAM();
+	/* Disable Systick timer */
+	SysTick->CTRL = 0;
 
+	/* Set the clock to the default state */
+	HAL_RCC_DeInit();
 
-   __asm__ volatile (
-      " movs  r0, #0\n"         // Auf 0x0 befindet sich jetzt system memory
-      " ldr   r1, [r0, #4]\n"   // Startadresse des Bootloaders
-      " ldr   r0, [r0, #0]\n"   // sein initial Stackpointer
-      " msr   msp, r0\n"        //
-      " mov   pc, r1\n"         // dies ist ein jump aka branch
-   );
+	/* Clear Interrupt Enable Register & Interrupt Pending Register */
+	for (i=0;i<5;i++)
+	{
+		NVIC->ICER[i]=0xFFFFFFFF;
+		NVIC->ICPR[i]=0xFFFFFFFF;
+	}
 
-   while(1);
+	/* Re-enable all interrupts */
+	__enable_irq();
+
+	/* Set up the jump to boot loader address + 4 */
+	SysMemBootJump = (void (*)(void)) (*((uint32_t *) ((0x1FFFEC00 + 4))));
+
+	/* Set the main stack pointer to the boot loader stack */
+	__set_MSP(*(uint32_t *)0x1FFFEC00);
+
+	/* Call the function to jump to boot loader location */
+	SysMemBootJump();
+
+	/* Jump is done successfully */
+	while (1)
+	{
+		/* Code should never reach this loop */
+	}
+
 }
+
+
 
 
 

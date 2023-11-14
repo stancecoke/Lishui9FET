@@ -256,6 +256,8 @@ static void KM_901U_Service(KINGMETER_t* KM_ctx)
     			else {
     				CheckSum=1;
     			}
+
+
      			switch(KM_Message[2])
     			        {
     			            case 0x52:      // Operation mode

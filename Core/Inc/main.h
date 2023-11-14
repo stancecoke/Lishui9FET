@@ -88,6 +88,9 @@ void kingmeter_update(void);
 #define SS_Speed_GPIO_Port GPIOB
 #define SS_Speed_EXTI_IRQn EXTI4_15_IRQn
 /* USER CODE BEGIN Private defines */
+
+#define BOOTLOADER_ADR 0x1FFFEC00
+
 typedef struct
 {
 	int16_t       	gain_p;

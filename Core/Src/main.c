@@ -66,12 +66,15 @@ DMA_HandleTypeDef hdma_usart1_tx;
 //    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
 //    return ch;
 //  }
+
+#define ST_BOOTLOADER_STARTADRESSE 0x1FFFC800 //0x1FFFEC00
 void TimerCommutationEvent_Callback(void);
 void Get_Direction(void);
 uint32_t PI_control (PI_control_t* PI_c);
 int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max);
 int16_t internal_tics_to_speedx100 (uint32_t tics);
 int16_t external_tics_to_speedx100 (uint32_t tics);
+void __attribute__ ((noreturn))BootLoaderUniversalAnsprungFunktion(void);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -333,7 +336,7 @@ int main(void)
 		  slow_loop_counter++;
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-			 // HAL_GPIO_TogglePin(Light_GPIO_Port, Light_Pin);
+			 if(!HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin))BootLoaderUniversalAnsprungFunktion();
 #ifdef DEBUG
 			  print_debug_info();
 #endif
@@ -1233,7 +1236,7 @@ void print_debug_info(void){
 				PI_battery_current.setpoint,
 				i16_battery_current_raw,
 				ui16_battery_current_offset,
-				LL_TIM_IsEnabledAllOutputs(TIM1),
+				HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin),
 				ui16_halltics);
 		i=0;
 		while (tx_buffer[i] != '\0'){i++;}
@@ -1298,7 +1301,65 @@ void kingmeter_update(void)
 
 
 
-}/* USER CODE END 4 */
+}
+
+
+void __attribute__ ((noreturn))BootLoaderUniversalAnsprungFunktion(void) // ™pegel
+{
+//	  void (*JumpAddress)(void);
+//	  // Startadresse der Applikation bzw des Bootloaders: dort beginnt die Vektortabelle
+//	  volatile uint32_t addr;
+//	  addr = ST_BOOTLOADER_STARTADRESSE;
+
+
+//	  JumpAddress = (void (*)(void)) (*((uint32_t *)(addr + 4)));
+//	    /**
+//	     * Set main stack pointer.
+//	     * This step must be done last otherwise local variables in this function
+//	     * don't have proper value since stack pointer is located on different position
+//	     *
+//	     * Set direct address location which specifies stack pointer in SRAM location
+//	     */
+//	    __set_MSP(*(uint32_t *)addr);
+//	    __DSB();
+//	    /**
+//	     * Call our function to jump to set location
+//	     * This will start system memory execution
+//	     */
+//	    JumpAddress();
+//	    // sollte hier nie ankommen
+//	    while(1) HAL_NVIC_SystemReset();
+	HAL_UART_DeInit(&huart1);
+
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN; //Takt aktivieren
+	SYSCFG->CFGR1 &= ~SYSCFG_CFGR1_MEM_MODE_1; //Bit löschen
+	SYSCFG->CFGR1 |= SYSCFG_CFGR1_MEM_MODE_0; //System Memory auf Adresse 0 remappen
+	  //SysTick zurücksetzen, wird im Bootloader benötigt
+	  SysTick->CTRL = 0;
+	  SysTick->LOAD = 0;
+	  SysTick->VAL = 0;
+//
+//		  /* Enable the SYSCFG peripheral clock*/
+//		  __HAL_RCC_SYSCFG_CLK_ENABLE();
+//		  /* Remap SRAM at 0x00000000 */
+//		  __HAL_SYSCFG_REMAPMEMORY_SRAM();
+
+
+   __asm__ volatile (
+      " movs  r0, #0\n"         // Auf 0x0 befindet sich jetzt system memory
+      " ldr   r1, [r0, #4]\n"   // Startadresse des Bootloaders
+      " ldr   r0, [r0, #0]\n"   // sein initial Stackpointer
+      " msr   msp, r0\n"        //
+      " mov   pc, r1\n"         // dies ist ein jump aka branch
+   );
+
+   while(1);
+}
+
+
+
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

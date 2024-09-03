@@ -1,2 +1,4 @@
 # Lishui9FET
-work in progress...
+see manual in release area
+
+Be careful, only use the "new" C500 display of Yose, the old C500 may kill the controller hardware!!!

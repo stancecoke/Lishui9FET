@@ -12,7 +12,11 @@
 
 #define P_FACTOR 200
 #define I_FACTOR 10
+//avoid redefined warning
+#ifndef DEBUG
 #define DEBUG
+#endif
+
 #define PERIOD 3000 //@48MHz for 16kHz PWM frequency
 #define THROTTLE_OFFSET 700
 #define THROTTLE_MAX 2820

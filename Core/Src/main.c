@@ -74,7 +74,7 @@ uint32_t PI_control (PI_control_t* PI_c);
 int32_t map (int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max);
 int16_t internal_tics_to_speedx100 (uint32_t tics);
 int16_t external_tics_to_speedx100 (uint32_t tics);
-void JumpToBootloader (void);
+//void JumpToBootloader (void);
 
 /* USER CODE END PV */
 
@@ -159,6 +159,7 @@ KINGMETER_t KM;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+
     // LED ON
 	//JumpToBootloader ();
   /* USER CODE END 1 */
@@ -339,7 +340,7 @@ int main(void)
 		  slow_loop_counter++;
 		  if(slow_loop_counter>20){//debug printout @50Hz
 			  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-			 if(!HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin))JumpToBootloader();
+			// if(!HAL_GPIO_ReadPin(BKL_Brake_GPIO_Port, BKL_Brake_Pin))JumpToBootloader();
 
 			 #ifdef DEBUG
 			  print_debug_info();
@@ -1308,47 +1309,54 @@ void kingmeter_update(void)
 }
 
 
-void JumpToBootloader (void)
-{
-uint32_t i=0;
-void (*SysMemBootJump)(void);
-
-
-	/* Disable all interrupts */
-	__disable_irq();
-
-	/* Disable Systick timer */
-	SysTick->CTRL = 0;
-
-	/* Set the clock to the default state */
-	HAL_RCC_DeInit();
-
-	/* Clear Interrupt Enable Register & Interrupt Pending Register */
-	for (i=0;i<5;i++)
-	{
-		NVIC->ICER[i]=0xFFFFFFFF;
-		NVIC->ICPR[i]=0xFFFFFFFF;
-	}
-
-	/* Re-enable all interrupts */
-	__enable_irq();
-
-	/* Set up the jump to boot loader address + 4 */
-	SysMemBootJump = (void (*)(void)) (*((uint32_t *) ((0x1FFFEC00 + 4))));
-
-	/* Set the main stack pointer to the boot loader stack */
-	__set_MSP(*(uint32_t *)0x1FFFEC00);
-
-	/* Call the function to jump to boot loader location */
-	SysMemBootJump();
-
-	/* Jump is done successfully */
-	while (1)
-	{
-		/* Code should never reach this loop */
-	}
-
-}
+//void JumpToBootloader (void)
+//{
+//uint32_t i=0;
+//void (*SysMemBootJump)(void);
+//
+//
+//	/* Disable all interrupts */
+//	__disable_irq();
+//
+//	/* Disable Systick timer */
+//	SysTick->CTRL = 0;
+//
+//	/* Set the clock to the default state */
+//	HAL_RCC_DeInit();
+//
+//	/* Clear Interrupt Enable Register & Interrupt Pending Register */
+//	for (i=0;i<5;i++)
+//	{
+//		NVIC->ICER[i]=0xFFFFFFFF;
+//		NVIC->ICPR[i]=0xFFFFFFFF;
+//	}
+//
+//	/* Re-enable all interrupts */
+//	__enable_irq();
+//
+//	/* Set up the jump to boot loader address + 4 */
+//	SysMemBootJump = (void (*)(void)) (*((uint32_t *) ((0x1FFFEC00 + 4))));
+//
+//	/* Set the main stack pointer to the boot loader stack */
+//	  /* Enable the SYSCFG peripheral clock*/
+//	  __HAL_RCC_SYSCFG_CLK_ENABLE();
+//	  /* Remap SRAM at 0x00000000 */
+//	  __HAL_SYSCFG_REMAPMEMORY_SRAM();
+//
+//
+//	__set_MSP(*(uint32_t *)0x1FFFEC00);
+//
+//
+//	/* Call the function to jump to boot loader location */
+//	SysMemBootJump();
+//
+//	/* Jump is done successfully */
+//	while (1)
+//	{
+//		/* Code should never reach this loop */
+//	}
+//
+//}
 
 
 
